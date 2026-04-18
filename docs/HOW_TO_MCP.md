@@ -1,4 +1,4 @@
-# How To Use The Vault MCP
+# How To Use The BrainGarden MCP
 
 This repo exposes a read-only MCP endpoint from the backend at:
 
@@ -67,7 +67,7 @@ Expected tools:
 Edit [config.toml](</Users/<user>/.codex/config.toml>) and add:
 
 ```toml
-[mcp_servers.vaultKnowledge]
+[mcp_servers.BrainGarden]
 url = "http://127.0.0.1:3000/mcp"
 ```
 
@@ -76,7 +76,7 @@ Then restart Codex Desktop.
 If you use the Codex CLI, you can add it with:
 
 ```sh
-codex mcp add vaultKnowledge --url http://127.0.0.1:3000/mcp
+codex mcp add BrainGarden --url http://127.0.0.1:3000/mcp
 ```
 
 ## 5. Tell Codex To Use It
@@ -84,13 +84,13 @@ codex mcp add vaultKnowledge --url http://127.0.0.1:3000/mcp
 Add a note to `AGENTS.md` if you want Codex to prefer this server automatically:
 
 ```md
-Always use the `vaultKnowledge` MCP server when you need to search or read the Obsidian knowledge base.
+Always use the `BrainGarden` MCP server when you need to search or read the Obsidian knowledge base.
 Prefer `search_curated` first, then `read_curated`.
 Use raw tools only when you need source verification.
 ```
 
 ## 6. Example Prompts
 
-- `Use vaultKnowledge to find notes about Android share flow.`
+- `Use BrainGarden to find notes about Android share flow.`
 - `Search the knowledge base for Obsidian ingest decisions and read the best match.`
 - `List recent ingests, then open the most relevant raw source.`
