@@ -99,9 +99,8 @@ export const ensureVaultScaffold = async (
 
 export const createRawSourcePath = (submissionId: string, receivedAtIso: string): string => {
   const timestamp = receivedAtIso.replace(/:/g, "-");
-  const [year, month, day] = receivedAtIso.slice(0, 10).split("-");
 
-  return `raw/${year}/${month}/${day}/${timestamp}--${submissionId}.txt`;
+  return `raw/${timestamp}--${submissionId}.txt`;
 };
 
 export const writeRawSourceFile = async (
