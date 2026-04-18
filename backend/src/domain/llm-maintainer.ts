@@ -216,7 +216,9 @@ Goals:
 - keep index.md, log.md, overview.md, and schema.md useful
 - record the ingest in log.md using the required ## [timestamp] ingest | submissionId | short title format
 - mention touched notes in the log entry
-- reference raw sources where useful
+- treat raw/*.txt files as the canonical fact sources for submissions
+- when writing or updating wiki content, prefer linking concrete claims back to supporting raw files, especially the current rawSourcePath and any other raw files you relied on
+- use explicit vault links to raw files when practical (for example [[raw/...txt]]) so readers can verify where facts came from
 - aggressively use fetch_url for URLs found in the submission whenever the linked page could add important context, facts, titles, summaries, or clarifications
 - when a submission includes one or more URLs, prefer fetching them before writing substantive notes about their contents
 - if you rely on information from a URL, fetch it first instead of guessing from the URL alone

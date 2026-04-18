@@ -33,7 +33,8 @@ The vault contains raw captures in \`raw/\` and curated notes in \`notes/\`.
 - Keep \`index.md\`, \`log.md\`, and \`overview.md\` useful after every ingest.
 - Prefer updating existing notes when new input fits an existing topic.
 - Use \`log.md\` for chronological ingest history.
-- Reference raw sources when they support a claim.
+- Treat \`raw/*.txt\` files as the canonical fact sources for submissions.
+- When adding or updating wiki content, prefer linking concrete claims back to supporting raw files, using explicit vault links like \`[[raw/...txt]]\` when practical.
 `,
 };
 
