@@ -45,7 +45,7 @@ fun ShareApp(
     onSaveSettings: (String) -> Unit,
     showSettings: Boolean,
 ) {
-    MaterialTheme {
+    BrainGardenTheme {
         Surface(color = MaterialTheme.colorScheme.background) {
             Scaffold { padding ->
                 when (uiState) {
@@ -272,7 +272,7 @@ fun AppHome(
     onDismissSettings: () -> Unit,
     onSaveSettings: (String) -> Unit,
 ) {
-    MaterialTheme {
+    BrainGardenTheme {
         Surface(color = MaterialTheme.colorScheme.background) {
             Scaffold { padding ->
                 Column(
