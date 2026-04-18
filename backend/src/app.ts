@@ -37,9 +37,7 @@ export const createApp = (dependencies: {
           path: context.req.path,
           requestId,
           statusCode: context.res.status,
-          ...(context.get("submissionId")
-            ? { submissionId: context.get("submissionId") }
-            : {}),
+          ...(context.get("submissionId") ? { submissionId: context.get("submissionId") } : {}),
         },
       });
     };

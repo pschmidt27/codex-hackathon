@@ -82,7 +82,9 @@ export const ensureVaultScaffold = async (
   );
 
   const gitIgnorePath = resolveVaultPath(vaultRepoPath, ".gitignore");
-  const existingGitIgnore = (await fileExists(gitIgnorePath)) ? await readUtf8File(gitIgnorePath) : "";
+  const existingGitIgnore = (await fileExists(gitIgnorePath))
+    ? await readUtf8File(gitIgnorePath)
+    : "";
   const wroteGitIgnore = existingGitIgnore !== vaultGitIgnoreContents;
 
   if (wroteGitIgnore) {

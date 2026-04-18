@@ -13,7 +13,6 @@ import { jobStatuses } from "../types/submissions.ts";
 import {
   buildMaintainerContext,
   createRawSourcePath,
-  createVaultToolset,
   readVaultSnapshot,
   restoreVaultFromSnapshot,
   writeRawSourceFile,
@@ -26,6 +25,7 @@ export type QueueProcessorDependencies = {
   logger: AppLogger;
   runMaintainer: (input: {
     capturedAt?: string;
+    rawSourceContent: string;
     rawSourcePath: string;
     sourceApp?: string;
     submissionId: string;
@@ -158,12 +158,11 @@ export const createSubmissionQueueService = (
       ...(submission.sourceApp ? { sourceApp: submission.sourceApp } : {}),
       submissionId: submission.submissionId,
     });
-    const toolset = createVaultToolset(dependencies.vaultRepoPath, dependencies.logger);
-
     const maintainerResult = await (async () => {
       try {
         return await dependencies.runMaintainer({
           ...(submission.capturedAt ? { capturedAt: submission.capturedAt } : {}),
+          rawSourceContent: submission.payloadText,
           rawSourcePath,
           ...(submission.sourceApp ? { sourceApp: submission.sourceApp } : {}),
           submissionId: submission.submissionId,
