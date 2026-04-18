@@ -53,12 +53,22 @@ export const createTelemetry = (config: Config): TelemetryHandle => {
     const attributes = Object.fromEntries(
       Object.entries(input.attributes ?? {}).filter(([, value]) => value !== undefined),
     );
-
-    logger.emit({
+    const record = {
       attributes,
       body: input.body,
       severityText,
-    });
+    };
+
+    logger.emit(record);
+
+    const serializedRecord = JSON.stringify(record);
+
+    if (severityText === "ERROR") {
+      console.error(serializedRecord);
+      return;
+    }
+
+    console.log(serializedRecord);
   };
 
   return {

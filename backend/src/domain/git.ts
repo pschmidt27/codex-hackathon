@@ -1,9 +1,9 @@
 import path from "node:path";
-
-import { $ } from "zx";
+import { execFile } from "node:child_process";
+import { promisify } from "node:util";
 
 import type { AppLogger } from "../lib/telemetry.ts";
-import { AppError, errorCodes } from "../lib/errors.ts";
+import { AppError, errorCodes, toError } from "../lib/errors.ts";
 import { fileExists } from "../lib/fs.ts";
 
 export type GitPreflightResult = {
@@ -18,10 +18,26 @@ export type GitCommitResult = {
 };
 
 const trimTrailingNewline = (value: string): string => value.trim();
+const execFileAsync = promisify(execFile);
 
 const runGit = async (vaultRepoPath: string, arguments_: string[]): Promise<string> => {
-  const processResult = await $({ cwd: vaultRepoPath, quiet: true })`git ${arguments_}`;
-  return processResult.stdout;
+  try {
+    const processResult = await execFileAsync("git", arguments_, { cwd: vaultRepoPath });
+    return processResult.stdout;
+  } catch (error) {
+    const normalizedError = toError(error);
+    throw new AppError({
+      code: errorCodes.git,
+      message: "Git command failed.",
+      statusCode: 500,
+      cause: error,
+      details: {
+        arguments: arguments_.join(" "),
+        errorMessage: normalizedError.message,
+        vaultRepoPath,
+      },
+    });
+  }
 };
 
 const parsePorcelainStatus = (statusOutput: string): string[] => {
@@ -75,17 +91,6 @@ export const verifyVaultGitRepo = async (
     });
   }
 
-  const statusOutput = await runGit(vaultRepoPath, ["status", "--porcelain"]);
-
-  if (trimTrailingNewline(statusOutput).length > 0) {
-    throw new AppError({
-      code: errorCodes.git,
-      message: "Vault repository working tree must be clean before processing jobs.",
-      statusCode: 500,
-      details: { statusOutput },
-    });
-  }
-
   return { branch: currentBranch, remote: configuredRemote };
 };
 
@@ -120,21 +125,46 @@ const commitAndPushChanges = async (
 
   logger.info({
     body: "Prepared git diff for commit.",
-    attributes: { changedFileCount: changedFiles.length, commitMessage, diff },
+    attributes: {
+      changedFileCount: changedFiles.length,
+      changedFiles: changedFiles.join(", "),
+      commitMessage,
+      diff,
+      gitBranch,
+      gitRemote,
+    },
   });
 
-  await runGit(vaultRepoPath, ["commit", "-m", commitMessage]);
-  const commitSha = trimTrailingNewline(await runGit(vaultRepoPath, ["rev-parse", "HEAD"]));
+  let commitSha = "";
+
+  try {
+    await runGit(vaultRepoPath, ["commit", "-m", commitMessage]);
+    commitSha = trimTrailingNewline(await runGit(vaultRepoPath, ["rev-parse", "HEAD"]));
+  } catch (error) {
+    const normalizedError = toError(error);
+    throw new AppError({
+      code: errorCodes.git,
+      message: "Failed to create vault commit.",
+      statusCode: 500,
+      cause: error,
+      details: {
+        changedFiles,
+        commitMessage,
+        errorMessage: normalizedError.message,
+      },
+    });
+  }
 
   try {
     await runGit(vaultRepoPath, ["push", gitRemote, gitBranch]);
   } catch (error) {
+    const normalizedError = toError(error);
     throw new AppError({
       code: errorCodes.git,
       message: "Failed to push vault commit to remote.",
       statusCode: 500,
       cause: error,
-      details: { commitSha, gitBranch, gitRemote },
+      details: { commitSha, errorMessage: normalizedError.message, gitBranch, gitRemote },
     });
   }
 

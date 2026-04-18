@@ -183,6 +183,14 @@ export const createVaultToolset = (vaultRepoPath: string, logger: AppLogger): Va
       const existingContent = await readUtf8File(absolutePath);
       const matchCount = existingContent.split(oldText).length - 1;
 
+      if (matchCount === 0 && existingContent.includes(newText)) {
+        logger.info({
+          body: "Vault edit skipped because desired content already exists.",
+          attributes: { filePath: relativePath },
+        });
+        return `Skipped ${relativePath}; desired content already present`;
+      }
+
       if (matchCount !== 1) {
         throw new AppError({
           code: errorCodes.validation,
@@ -222,15 +230,20 @@ export const createVaultToolset = (vaultRepoPath: string, logger: AppLogger): Va
   };
 };
 
-const validateNotes = async (vaultRepoPath: string): Promise<void> => {
-  const notesDirectory = resolveVaultPath(vaultRepoPath, "notes");
-  const noteRelativePaths = (await listFilesRecursive(notesDirectory)).map(
-    (filePath) => `notes/${filePath}`,
-  );
+const validateNotes = async (vaultRepoPath: string, changedFiles: string[]): Promise<void> => {
+  const noteRelativePaths = changedFiles
+    .filter((filePath) => filePath.startsWith("notes/"))
+    .sort((left, right) => left.localeCompare(right));
 
   await Promise.all(
     noteRelativePaths.map(async (noteRelativePath) => {
-      const content = await readUtf8File(resolveVaultPath(vaultRepoPath, noteRelativePath));
+      const absolutePath = resolveVaultPath(vaultRepoPath, noteRelativePath);
+
+      if (!(await fileExists(absolutePath))) {
+        return;
+      }
+
+      const content = await readUtf8File(absolutePath);
       const trimmed = content.trim();
 
       if (trimmed.length === 0) {
@@ -242,6 +255,7 @@ const validateNotes = async (vaultRepoPath: string): Promise<void> => {
       }
 
       const lines = trimmed.split("\n");
+      const summaryLine = lines.slice(1).find((line) => line.trim().length > 0);
 
       if (!lines[0]?.startsWith("# ")) {
         throw new AppError({
@@ -251,7 +265,7 @@ const validateNotes = async (vaultRepoPath: string): Promise<void> => {
         });
       }
 
-      if (lines.length < minimumNoteSummaryLineCount || (lines[1] ?? "").trim().length === 0) {
+      if (lines.length < minimumNoteSummaryLineCount || !summaryLine) {
         throw new AppError({
           code: errorCodes.validation,
           message: `Note file must include a summary paragraph below the title: ${noteRelativePath}`,
@@ -290,8 +304,6 @@ export const assertVaultHealth = async (
     }),
   );
 
-  await validateNotes(vaultRepoPath);
-
   if (changedFiles.length === 0) {
     throw new AppError({
       code: errorCodes.validation,
@@ -299,6 +311,8 @@ export const assertVaultHealth = async (
       statusCode: 500,
     });
   }
+
+  await validateNotes(vaultRepoPath, changedFiles);
 };
 
 export const restoreVaultFromSnapshot = async (

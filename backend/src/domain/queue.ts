@@ -132,6 +132,9 @@ export const createSubmissionQueueService = (
           attributes: {
             errorMessage: appError.message,
             submissionId: nextSubmissionId,
+            ...(appError instanceof AppError && appError.details
+              ? { errorDetails: JSON.stringify(appError.details) }
+              : {}),
           },
         });
 
@@ -157,21 +160,29 @@ export const createSubmissionQueueService = (
     });
     const toolset = createVaultToolset(dependencies.vaultRepoPath, dependencies.logger);
 
+    const maintainerResult = await (async () => {
+      try {
+        return await dependencies.runMaintainer({
+          ...(submission.capturedAt ? { capturedAt: submission.capturedAt } : {}),
+          rawSourcePath,
+          ...(submission.sourceApp ? { sourceApp: submission.sourceApp } : {}),
+          submissionId: submission.submissionId,
+          vaultContext,
+        });
+      } catch (error) {
+        await restoreVaultFromSnapshot(dependencies.vaultRepoPath, snapshotBeforeMaintainer);
+        throw error;
+      }
+    })();
+
+    const changedFiles = [...new Set([rawSourcePath, ...maintainerResult.filesChanged])];
+
     try {
-      await dependencies.runMaintainer({
-        ...(submission.capturedAt ? { capturedAt: submission.capturedAt } : {}),
-        rawSourcePath,
-        ...(submission.sourceApp ? { sourceApp: submission.sourceApp } : {}),
-        submissionId: submission.submissionId,
-        vaultContext,
-      });
+      await dependencies.verifyPostEditVaultHealth(changedFiles);
     } catch (error) {
       await restoreVaultFromSnapshot(dependencies.vaultRepoPath, snapshotBeforeMaintainer);
       throw error;
     }
-
-    const changedFiles = await toolset.listFiles();
-    await dependencies.verifyPostEditVaultHealth(changedFiles);
 
     const gitResult = await dependencies.commitAndPushVaultChanges(submission.submissionId);
     lastCommitSha = gitResult.commitSha;
