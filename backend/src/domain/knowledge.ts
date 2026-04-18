@@ -29,7 +29,10 @@ export type KnowledgeService = {
 };
 
 const normalizeRelativePath = (relativePath: string): string => {
-  return relativePath.replace(/\\/g, "/").replace(/^(?:\.\/)+/, "").replace(/\/+/g, "/");
+  return relativePath
+    .replace(/\\/g, "/")
+    .replace(/^(?:\.\/)+/, "")
+    .replace(/\/+/g, "/");
 };
 
 export const isAllowedCuratedPath = (relativePath: string): boolean => {

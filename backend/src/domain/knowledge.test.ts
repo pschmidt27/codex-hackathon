@@ -40,12 +40,18 @@ const createVaultFixture = async (): Promise<string> => {
       "utf8",
     ),
     writeFile(
-      path.join(vaultPath, "raw/2026-04-18T11-45-00.000Z--123e4567-e89b-12d3-a456-426614174000.txt"),
+      path.join(
+        vaultPath,
+        "raw/2026-04-18T11-45-00.000Z--123e4567-e89b-12d3-a456-426614174000.txt",
+      ),
       "Phoenix capture from mobile share.",
       "utf8",
     ),
     writeFile(
-      path.join(vaultPath, "raw/2026-04-18T12-30-00.000Z--223e4567-e89b-12d3-a456-426614174001.txt"),
+      path.join(
+        vaultPath,
+        "raw/2026-04-18T12-30-00.000Z--223e4567-e89b-12d3-a456-426614174001.txt",
+      ),
       "Second capture mentioning umbrella and weather.",
       "utf8",
     ),

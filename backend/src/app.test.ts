@@ -20,17 +20,19 @@ const noopLogger: AppLogger = {
 };
 
 const queueServiceStub: SubmissionQueueService = {
-  enqueue: (submission) => Promise.resolve({
-    status: "accepted",
-    statusCode: 202,
-    submissionId: submission.submissionId,
-  }),
-  getDebugState: () => Promise.resolve({
-    acceptingNewSubmissions: true,
-    failedSubmissionIds: [],
-    queue: [],
-    vaultGitStatus: "clean",
-  }),
+  enqueue: (submission) =>
+    Promise.resolve({
+      status: "accepted",
+      statusCode: 202,
+      submissionId: submission.submissionId,
+    }),
+  getDebugState: () =>
+    Promise.resolve({
+      acceptingNewSubmissions: true,
+      failedSubmissionIds: [],
+      queue: [],
+      vaultGitStatus: "clean",
+    }),
   getSubmissionStatus: () => undefined,
   shutdown: () => Promise.resolve(),
 };
@@ -47,9 +49,16 @@ const createVaultFixture = async (): Promise<string> => {
     writeFile(path.join(vaultPath, "index.md"), "# Index\n\n", "utf8"),
     writeFile(path.join(vaultPath, "overview.md"), "# Overview\n\n", "utf8"),
     writeFile(path.join(vaultPath, "log.md"), "# Log\n\n", "utf8"),
-    writeFile(path.join(vaultPath, "notes/project-phoenix.md"), "# Project Phoenix\n\nAlpha note.\n", "utf8"),
     writeFile(
-      path.join(vaultPath, "raw/2026-04-18T10-00-00.000Z--123e4567-e89b-12d3-a456-426614174000.txt"),
+      path.join(vaultPath, "notes/project-phoenix.md"),
+      "# Project Phoenix\n\nAlpha note.\n",
+      "utf8",
+    ),
+    writeFile(
+      path.join(
+        vaultPath,
+        "raw/2026-04-18T10-00-00.000Z--123e4567-e89b-12d3-a456-426614174000.txt",
+      ),
       "Captured alpha note from share sheet.",
       "utf8",
     ),
@@ -75,7 +84,9 @@ const buildConfig = (vaultRepoPath: string, overrides?: Partial<Config>): Config
 
 afterEach(async () => {
   await Promise.all(
-    temporaryVaults.splice(0).map(async (vaultPath) => rm(vaultPath, { force: true, recursive: true })),
+    temporaryVaults
+      .splice(0)
+      .map(async (vaultPath) => rm(vaultPath, { force: true, recursive: true })),
   );
 });
 
@@ -137,7 +148,9 @@ void test("returns curated search and read responses with expected shape", async
       headers: { "x-shared-secret": "secret" },
     }),
   );
-  const searchBody = (await searchResponse.json()) as { results: Array<{ path: string; score: number }> };
+  const searchBody = (await searchResponse.json()) as {
+    results: Array<{ path: string; score: number }>;
+  };
   const firstResult = searchBody.results[0];
   const readResponse = await app.fetch(
     new Request(

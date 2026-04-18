@@ -115,7 +115,9 @@ const buildJsonRpcErrorResponse = (
   );
 };
 
-const buildToolResult = (payload: unknown): { content: Array<{ text: string; type: "text" }>; structuredContent: unknown } => {
+const buildToolResult = (
+  payload: unknown,
+): { content: Array<{ text: string; type: "text" }>; structuredContent: unknown } => {
   return {
     content: [
       {

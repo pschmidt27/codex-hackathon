@@ -67,8 +67,10 @@ export const createApp = (dependencies: {
 
     if (
       dependencies.config.authSharedSecret &&
-      !(dependencies.config.allowInsecureReadAccess &&
-        isReadOnlyKnowledgePath(context.req.method, context.req.path))
+      !(
+        dependencies.config.allowInsecureReadAccess &&
+        isReadOnlyKnowledgePath(context.req.method, context.req.path)
+      )
     ) {
       const providedSecret = context.req.header(sharedSecretHeaderName);
 
@@ -85,7 +87,10 @@ export const createApp = (dependencies: {
 
   app.get("/health", (context) => context.json({ status: "ok" }, 200));
   app.route("/mcp", createMcpRouter({ knowledgeService: dependencies.knowledgeService }));
-  app.route("/v1/knowledge", createKnowledgeRouter({ knowledgeService: dependencies.knowledgeService }));
+  app.route(
+    "/v1/knowledge",
+    createKnowledgeRouter({ knowledgeService: dependencies.knowledgeService }),
+  );
   app.route("/v1/submissions", createSubmissionsRouter(dependencies));
 
   app.onError((error, context) => {
