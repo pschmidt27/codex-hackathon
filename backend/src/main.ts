@@ -20,8 +20,8 @@ const main = async (): Promise<void> => {
   const logger = telemetry.logger;
   const openAiClient = createOpenAiClient(config);
 
-  await ensureVaultScaffold(config.vaultRepoPath);
   await verifyVaultGitRepo(config.vaultRepoPath, config.gitBranch, config.gitRemote);
+  await ensureVaultScaffold(config.vaultRepoPath);
 
   const queueService = createSubmissionQueueService({
     commitAndPushVaultChanges: async (submissionId) =>
