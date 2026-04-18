@@ -55,11 +55,9 @@ export const writeFileAtomic = async (
   const tempPath = path.join(tempDirectory, path.basename(targetPath));
 
   try {
-    if (typeof content === "string") {
-      await writeFile(tempPath, content, "utf8");
-    } else {
-      await writeFile(tempPath, content);
-    }
+    await (typeof content === "string"
+      ? writeFile(tempPath, content, "utf8")
+      : writeFile(tempPath, content));
     await rename(tempPath, targetPath);
   } finally {
     await rm(tempDirectory, { recursive: true, force: true });

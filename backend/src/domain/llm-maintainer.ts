@@ -221,6 +221,8 @@ Goals:
 - preserve or improve wiki-style links between related notes
 - keep index.md, log.md, overview.md, and schema.md useful
 - every submission must create or update at least one curated note under notes/
+- all curated notes must live under notes/
+- never create a new root-level markdown file; the only allowed root markdown files are index.md, log.md, overview.md, and schema.md
 - for image submissions, update an existing note only when the match is clear; otherwise create a new note
 - record the ingest in log.md using the required ## [timestamp] ingest | submissionId | short title format
 - include the curated action, curated note path, raw source path, and raw asset path in the log entry when available

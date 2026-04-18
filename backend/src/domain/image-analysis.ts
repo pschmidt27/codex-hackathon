@@ -92,7 +92,7 @@ export const analyzeImageSubmission = async (options: {
       response_format: { type: "json_object" },
     });
 
-    const content = parseAssistantContent(completion.choices[0]?.message?.content ?? null).trim();
+    const content = parseAssistantContent(completion.choices[0]?.message.content ?? null).trim();
     const parsedJson = JSON.parse(content) as unknown;
     const parsed = imageAnalysisSchema.safeParse(parsedJson);
 

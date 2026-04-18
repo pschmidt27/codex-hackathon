@@ -17,6 +17,7 @@ import {
 import { commitAndPushVaultScaffold } from "./git.ts";
 
 const requiredRootFiles = ["index.md", "log.md", "overview.md", "schema.md"] as const;
+const allowedRootMarkdownFiles = new Set<string>(requiredRootFiles);
 const vaultGitIgnoreContents = ".obsidian/\n";
 const minimumNoteSummaryLineCount = 3;
 
@@ -34,6 +35,7 @@ The vault contains raw captures in \`raw/\` and curated notes in \`notes/\`.
 - Preserve useful wiki-style links between related notes.
 - Keep \`index.md\`, \`log.md\`, and \`overview.md\` useful after every ingest.
 - Prefer updating existing notes when new input fits an existing topic.
+- All curated notes must live under \`notes/\`. Do not create new root-level markdown files other than \`index.md\`, \`log.md\`, \`overview.md\`, and \`schema.md\`.
 - Use \`log.md\` for chronological ingest history.
 - Treat \`raw/*.txt\` files as the canonical fact sources for submissions.
 - When adding or updating wiki content, prefer linking concrete claims back to supporting raw files, using explicit vault links like \`[[raw/...txt]]\` when practical.
@@ -258,6 +260,62 @@ export const buildMaintainerContext = async (
   return sections.join("\n\n");
 };
 
+const normalizeRelativePath = (relativePath: string): string => relativePath.replace(/\\/g, "/");
+
+const assertWritableVaultPath = (relativePath: string): void => {
+  const normalizedPath = normalizeRelativePath(relativePath);
+  const isMarkdownFile = normalizedPath.endsWith(".md");
+  const isTextFile = normalizedPath.endsWith(".txt");
+  const isRootLevel = !normalizedPath.includes("/");
+
+  if (isMarkdownFile) {
+    if (isRootLevel) {
+      if (allowedRootMarkdownFiles.has(normalizedPath)) {
+        return;
+      }
+
+      throw new AppError({
+        code: errorCodes.validation,
+        message: `Unexpected root-level markdown file: ${relativePath}`,
+        statusCode: 400,
+        details: { relativePath },
+      });
+    }
+
+    if (!normalizedPath.startsWith("notes/")) {
+      throw new AppError({
+        code: errorCodes.validation,
+        message: `Markdown notes must live under notes/: ${relativePath}`,
+        statusCode: 400,
+        details: { relativePath },
+      });
+    }
+
+    return;
+  }
+
+  if (isTextFile && !normalizedPath.startsWith("raw/")) {
+    throw new AppError({
+      code: errorCodes.validation,
+      message: `Raw text files must live under raw/: ${relativePath}`,
+      statusCode: 400,
+      details: { relativePath },
+    });
+  }
+};
+
+export const getChangedVaultFilesSinceSnapshot = async (
+  vaultRepoPath: string,
+  snapshot: VaultSnapshot,
+): Promise<string[]> => {
+  const currentSnapshot = await readVaultSnapshot(vaultRepoPath);
+  const candidatePaths = new Set([...snapshot.relativeFilePaths, ...currentSnapshot.relativeFilePaths]);
+
+  return [...candidatePaths]
+    .filter((filePath) => snapshot.files[filePath] !== currentSnapshot.files[filePath])
+    .sort((left, right) => left.localeCompare(right));
+};
+
 export const createVaultToolset = (vaultRepoPath: string, logger: AppLogger): VaultToolset => {
   const readFileFromVault = async (relativePath: string): Promise<string> => {
     const absolutePath = resolveVaultPath(vaultRepoPath, relativePath);
@@ -265,6 +323,7 @@ export const createVaultToolset = (vaultRepoPath: string, logger: AppLogger): Va
   };
 
   const writeFileToVault = async (relativePath: string, content: string): Promise<string> => {
+    assertWritableVaultPath(relativePath);
     const absolutePath = resolveVaultPath(vaultRepoPath, relativePath);
     await writeFileAtomic(absolutePath, content);
     logger.info({ body: "Vault file written.", attributes: { filePath: relativePath } });
@@ -317,6 +376,7 @@ export const createVaultToolset = (vaultRepoPath: string, logger: AppLogger): Va
     },
     readFile: readFileFromVault,
     renameFile: async (relativePath, newRelativePath) => {
+      assertWritableVaultPath(newRelativePath);
       const currentAbsolutePath = resolveVaultPath(vaultRepoPath, relativePath);
       const nextAbsolutePath = resolveVaultPath(vaultRepoPath, newRelativePath);
       await ensureDirectory(path.dirname(nextAbsolutePath));
@@ -329,6 +389,25 @@ export const createVaultToolset = (vaultRepoPath: string, logger: AppLogger): Va
     },
     writeFile: writeFileToVault,
   };
+};
+
+const validateChangedFiles = (changedFiles: string[]): void => {
+  for (const filePath of changedFiles) {
+    const normalizedPath = normalizeRelativePath(filePath);
+
+    if (
+      normalizedPath.endsWith(".md") &&
+      !normalizedPath.includes("/") &&
+      !allowedRootMarkdownFiles.has(normalizedPath)
+    ) {
+      throw new AppError({
+        code: errorCodes.validation,
+        message: `Unexpected root-level markdown file: ${filePath}`,
+        statusCode: 500,
+        details: { filePath },
+      });
+    }
+  }
 };
 
 const validateNotes = async (vaultRepoPath: string, changedFiles: string[]): Promise<void> => {
@@ -413,6 +492,7 @@ export const assertVaultHealth = async (
     });
   }
 
+  validateChangedFiles(changedFiles);
   await validateNotes(vaultRepoPath, changedFiles);
 };
 

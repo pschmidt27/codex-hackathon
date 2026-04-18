@@ -19,6 +19,7 @@ import {
   createRawImageMetadataPath,
   createRawTextSourcePath,
   createVaultToolset,
+  getChangedVaultFilesSinceSnapshot,
   readVaultSnapshot,
   restoreVaultFromSnapshot,
   writeRawImageAssetFile,
@@ -185,7 +186,7 @@ export const createSubmissionQueueService = (
       });
       createVaultToolset(dependencies.vaultRepoPath, dependencies.logger);
 
-      const maintainerResult = await dependencies.runMaintainer({
+      await dependencies.runMaintainer({
         ...(submission.capturedAt ? { capturedAt: submission.capturedAt } : {}),
         kind: submission.kind,
         ...(rawOutput.rawAssetPath ? { rawAssetPath: rawOutput.rawAssetPath } : {}),
@@ -200,7 +201,10 @@ export const createSubmissionQueueService = (
         ...new Set([
           rawOutput.rawSourcePath,
           ...(rawOutput.rawAssetPath ? [rawOutput.rawAssetPath] : []),
-          ...maintainerResult.filesChanged,
+          ...(await getChangedVaultFilesSinceSnapshot(
+            dependencies.vaultRepoPath,
+            snapshotBeforeSubmission,
+          )),
         ]),
       ];
 
@@ -285,17 +289,21 @@ export const createSubmissionQueueService = (
       const existingJob = jobs.get(submission.submissionId);
 
       if (existingSubmission && existingJob) {
+        const sameTextPayload =
+          existingSubmission.kind === "text" &&
+          submission.kind === "text" &&
+          existingSubmission.payloadSha256 === submission.payloadSha256 &&
+          existingSubmission.payloadText === submission.payloadText;
+        const sameImagePayload =
+          existingSubmission.kind === "image" &&
+          submission.kind === "image" &&
+          existingSubmission.captionText === submission.captionText &&
+          existingSubmission.image.sha256 === submission.image.sha256;
         const samePayload =
           existingSubmission.kind === submission.kind &&
           existingSubmission.capturedAt === submission.capturedAt &&
           existingSubmission.sourceApp === submission.sourceApp &&
-          (existingSubmission.kind === "text" && submission.kind === "text"
-            ? existingSubmission.payloadSha256 === submission.payloadSha256 &&
-              existingSubmission.payloadText === submission.payloadText
-            : existingSubmission.kind === "image" && submission.kind === "image"
-              ? existingSubmission.captionText === submission.captionText &&
-                existingSubmission.image.sha256 === submission.image.sha256
-              : false);
+          (sameTextPayload || sameImagePayload);
 
         if (!samePayload) {
           throw new AppError({
