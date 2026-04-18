@@ -64,10 +64,12 @@ export const createTelemetry = (config: Config): TelemetryHandle => {
     const serializedRecord = JSON.stringify(record);
 
     if (severityText === "ERROR") {
+      // eslint-disable-next-line no-console -- should print to console here
       console.error(serializedRecord);
       return;
     }
 
+    // eslint-disable-next-line no-console -- should print to console here
     console.log(serializedRecord);
   };
 
