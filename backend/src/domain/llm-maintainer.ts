@@ -9,7 +9,7 @@ import { z } from "zod";
 import type { Config } from "../config.ts";
 import type { AppLogger } from "../lib/telemetry.ts";
 import type { VaultToolset } from "./vault.ts";
-import { AppError, errorCodes } from "../lib/errors.ts";
+import { AppError, errorCodes, toError } from "../lib/errors.ts";
 
 export type MaintainerInput = {
   capturedAt?: string;
@@ -280,18 +280,40 @@ export const runMaintainerAgent = async (options: {
           });
         }
 
-        const toolResult = await executeToolCall(
-          toolCall.function.name,
-          toolCall.function.arguments,
-          options.toolset,
-        );
-        options.logger.info({
-          body: "Maintainer tool call completed.",
-          attributes: {
-            submissionId: options.input.submissionId,
-            toolName: toolCall.function.name,
-          },
-        });
+        let toolResult: string;
+
+        try {
+          toolResult = await executeToolCall(
+            toolCall.function.name,
+            toolCall.function.arguments,
+            options.toolset,
+          );
+          options.logger.info({
+            body: "Maintainer tool call completed.",
+            attributes: {
+              submissionId: options.input.submissionId,
+              toolName: toolCall.function.name,
+            },
+          });
+        } catch (error) {
+          const normalizedError = toError(error);
+          const errorDetails =
+            error instanceof AppError && error.details
+              ? ` Details: ${JSON.stringify(error.details)}`
+              : "";
+
+          options.logger.warn({
+            body: "Maintainer tool call failed and was returned to the model.",
+            attributes: {
+              errorMessage: normalizedError.message,
+              submissionId: options.input.submissionId,
+              toolName: toolCall.function.name,
+            },
+          });
+
+          toolResult = `ERROR: ${normalizedError.message}${errorDetails}`;
+        }
+
         messages.push({
           role: "tool",
           tool_call_id: toolCall.id,
