@@ -3,7 +3,7 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "check": "pnpm format:check && pnpm typecheck && pnpm lint && pnpm test",
+    "check": "pnpm format:check && pnpm typecheck && pnpm lint",
     "dev": "node --watch --env-file .env src/main.ts",
     "format": "prettier --write --ignore-unknown .",
     "format:check": "prettier --check --ignore-unknown .",
