@@ -12,6 +12,7 @@ export const errorCodes = {
 export type ErrorCode = (typeof errorCodes)[keyof typeof errorCodes];
 
 export class AppError extends Error {
+  public readonly cause?: unknown;
   public readonly code: ErrorCode;
   public readonly details?: Record<string, unknown>;
   public readonly statusCode: number;
@@ -25,8 +26,11 @@ export class AppError extends Error {
     details?: Record<string, unknown>;
     isOperational?: boolean;
   }) {
-    super(options.message, { cause: options.cause });
+    super(options.message);
     this.name = "AppError";
+    if (options.cause !== undefined) {
+      this.cause = options.cause;
+    }
     this.code = options.code;
     this.statusCode = options.statusCode ?? 500;
     if (options.details) {

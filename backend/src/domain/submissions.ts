@@ -14,7 +14,7 @@ export const submissionRequestSchema = z.object({
 
 export type SubmissionRequest = z.infer<typeof submissionRequestSchema>;
 
-const normalizeLineEndings = (text: string): string => text.replaceAll(/\r\n?/g, "\n");
+const normalizeLineEndings = (text: string): string => text.replace(/\r\n?/g, "\n");
 
 const getUtf8ByteLength = (value: string): number => Buffer.byteLength(value, "utf8");
 

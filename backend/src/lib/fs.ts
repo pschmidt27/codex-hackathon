@@ -29,7 +29,7 @@ export const ensureDirectory = async (directoryPath: string): Promise<void> => {
 };
 
 export const resolveVaultPath = (vaultRootPath: string, relativeFilePath: string): string => {
-  const sanitizedRelativePath = relativeFilePath.replaceAll("\\", "/");
+  const sanitizedRelativePath = relativeFilePath.replace(/\\/g, "/");
   const resolvedPath = path.resolve(vaultRootPath, sanitizedRelativePath);
   const relativeToRoot = path.relative(vaultRootPath, resolvedPath);
 
@@ -86,7 +86,7 @@ const listFilesRecursiveInternal = async (
         return [];
       }
 
-      return [path.relative(rootPath, absolutePath).replaceAll("\\", "/")];
+      return [path.relative(rootPath, absolutePath).replace(/\\/g, "/")];
     }),
   );
 
