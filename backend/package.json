@@ -4,19 +4,27 @@
   "type": "module",
   "scripts": {
     "check": "pnpm format:check && pnpm typecheck && pnpm lint && pnpm test",
-    "dev": "node --watch src/main.ts",
+    "dev": "node --watch --env-file .env src/main.ts",
     "format": "prettier --write --ignore-unknown .",
     "format:check": "prettier --check --ignore-unknown .",
     "lint": "eslint --max-warnings 0 .",
     "lint:file": "eslint --max-warnings 0",
     "lint:file:fix": "eslint --max-warnings 0 --fix",
     "lint:fix": "eslint --max-warnings 0 . --fix",
-    "start": "node src/main.ts",
+    "start": "node --env-file .env src/main.ts",
     "typecheck": "tsc --build tsconfig.json",
     "typecheck:watch": "pnpm run typecheck --watch"
   },
   "dependencies": {
-    "zod": "^4.3.6"
+    "@hono/node-server": "^1.19.4",
+    "@opentelemetry/api-logs": "^0.206.0",
+    "@opentelemetry/resources": "^2.1.0",
+    "@opentelemetry/sdk-logs": "^0.206.0",
+    "@opentelemetry/sdk-node": "^0.206.0",
+    "hono": "^4.9.8",
+    "openai": "^6.4.1",
+    "zod": "^4.3.6",
+    "zx": "^8.8.4"
   },
   "devDependencies": {
     "@types/node": "24",
