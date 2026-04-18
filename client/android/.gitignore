@@ -1,0 +1,28 @@
+# Gradle
+.gradle/
+build/
+**/build/
+
+# Android Studio / IntelliJ
+.idea/
+*.iml
+captures/
+.externalNativeBuild/
+.cxx/
+
+# Local SDK and config
+local.properties
+*.keystore
+*.jks
+*.pem
+
+# Generated files
+*.log
+*.hprof
+*.apk
+*.aab
+*.dex
+*.class
+
+# Mac
+.DS_Store
