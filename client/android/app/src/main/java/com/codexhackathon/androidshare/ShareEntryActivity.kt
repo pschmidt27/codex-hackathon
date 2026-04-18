@@ -36,6 +36,7 @@ class ShareEntryActivity : ComponentActivity() {
             ShareApp(
                 uiState = uiState,
                 currentEndpoint = endpointSettingsStore.getEndpointUrl(),
+                onSubmit = viewModel::submit,
                 onRetry = viewModel::retry,
                 onDone = ::finish,
                 onOpenApp = {

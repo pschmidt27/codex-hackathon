@@ -51,12 +51,15 @@ class ShareViewModel(
         latestPayload = payload
         latestIncomingShareKey = incomingShare.dedupeKey
         _uiState.value = ShareUiState.PreviewAndSending(payload, isSending = false)
+    }
+
+    fun submit() {
+        val payload = latestPayload ?: return
         submit(payload)
     }
 
     fun retry() {
-        val payload = latestPayload ?: return
-        submit(payload)
+        submit()
     }
 
     private fun submit(payload: SharePayload) {

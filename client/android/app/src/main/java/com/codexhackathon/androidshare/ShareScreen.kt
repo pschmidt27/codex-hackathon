@@ -31,12 +31,12 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
-import kotlinx.coroutines.delay
 
 @Composable
 fun ShareApp(
     uiState: ShareUiState,
     currentEndpoint: String,
+    onSubmit: () -> Unit,
     onRetry: () -> Unit,
     onDone: () -> Unit,
     onOpenApp: () -> Unit,
@@ -63,8 +63,8 @@ fun ShareApp(
                         headline = if (uiState.isSending) "Sending capture..." else "Ready to send",
                         supporting = if (uiState.isSending) null else "Captured text",
                         payload = uiState.payload,
-                        primaryButtonLabel = null,
-                        onPrimary = null,
+                        primaryButtonLabel = if (uiState.isSending) null else "Send",
+                        onPrimary = if (uiState.isSending) null else onSubmit,
                         showProgress = uiState.isSending,
                         currentEndpoint = currentEndpoint,
                         showOpenApp = false,
@@ -95,8 +95,8 @@ fun ShareApp(
                             ?.takeIf { it.isNotBlank() }
                             ?.let { "Submission $it" },
                         payload = uiState.payload,
-                        primaryButtonLabel = "Done",
-                        onPrimary = onDone,
+                        primaryButtonLabel = null,
+                        onPrimary = null,
                         showProgress = false,
                         currentEndpoint = currentEndpoint,
                         showOpenApp = false,
@@ -180,7 +180,6 @@ private fun ShareContent(
 ) {
     if (autoDismissOnSuccess) {
         LaunchedEffect(payload.submissionId) {
-            delay(1200)
             onDone()
         }
     }
@@ -261,14 +260,6 @@ private fun ShareContent(
                 }
             }
 
-            if (autoDismissOnSuccess) {
-                Button(
-                    onClick = onDone,
-                    modifier = Modifier.weight(1f),
-                ) {
-                    Text("Close")
-                }
-            }
         }
     }
 }
