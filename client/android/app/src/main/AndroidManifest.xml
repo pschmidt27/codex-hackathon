@@ -6,7 +6,7 @@
     <application
         android:label="@string/app_name"
         android:supportsRtl="true"
-        android:theme="@style/Theme.PkbShare"
+        android:theme="@style/Theme.BrainGarden"
         android:usesCleartextTraffic="true">
         <activity
             android:name=".MainActivity"
@@ -23,7 +23,7 @@
             android:name=".ShareEntryActivity"
             android:exported="true"
             android:launchMode="singleTop"
-            android:theme="@style/Theme.PkbShare.Dialog">
+            android:theme="@style/Theme.BrainGarden.Dialog">
             <intent-filter>
                 <action android:name="android.intent.action.SEND" />
 

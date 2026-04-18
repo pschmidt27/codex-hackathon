@@ -1,4 +1,4 @@
-package com.codexhackathon.androidshare
+package com.braingarden.androidshare
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider

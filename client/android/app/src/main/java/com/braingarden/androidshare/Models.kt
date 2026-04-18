@@ -1,4 +1,4 @@
-package com.codexhackathon.androidshare
+package com.braingarden.androidshare
 
 data class IncomingShare(
     val text: String,

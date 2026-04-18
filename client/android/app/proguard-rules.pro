@@ -1,1 +1,1 @@
-# Hackathon build keeps release rules minimal.
+# BrainGarden build keeps release rules minimal.

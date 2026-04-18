@@ -1,4 +1,4 @@
-package com.codexhackathon.androidshare
+package com.braingarden.androidshare
 
 import android.content.Context
 

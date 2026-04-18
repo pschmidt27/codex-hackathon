@@ -1,4 +1,4 @@
-package com.codexhackathon.androidshare
+package com.braingarden.androidshare
 
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.runBlocking

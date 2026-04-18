@@ -4,11 +4,11 @@ plugins {
 }
 
 android {
-    namespace 'com.codexhackathon.androidshare'
+    namespace 'com.braingarden.androidshare'
     compileSdk 35
 
     defaultConfig {
-        applicationId "com.codexhackathon.androidshare"
+        applicationId "com.braingarden.androidshare"
         minSdk 26
         targetSdk 35
         versionCode 1

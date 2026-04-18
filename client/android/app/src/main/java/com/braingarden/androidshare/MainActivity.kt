@@ -1,4 +1,4 @@
-package com.codexhackathon.androidshare
+package com.braingarden.androidshare
 
 import android.os.Bundle
 import androidx.activity.ComponentActivity

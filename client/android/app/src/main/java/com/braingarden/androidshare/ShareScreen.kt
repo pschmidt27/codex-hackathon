@@ -1,4 +1,4 @@
-package com.codexhackathon.androidshare
+package com.braingarden.androidshare
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
@@ -283,7 +283,7 @@ fun AppHome(
                     verticalArrangement = Arrangement.spacedBy(16.dp),
                 ) {
                     Text(
-                        text = "PKB Share",
+                        text = "BrainGarden",
                         style = MaterialTheme.typography.headlineMedium,
                         fontWeight = FontWeight.SemiBold,
                     )
