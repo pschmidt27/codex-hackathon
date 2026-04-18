@@ -4,7 +4,6 @@ import android.widget.ImageView
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.PaddingValues
@@ -63,20 +62,28 @@ fun ShareApp(
                         onDone = onDone,
                     )
 
-                    is ShareUiState.PreviewAndSending -> ShareContent(
-                        padding = padding,
-                        headline = if (uiState.isSending) "Sending capture..." else "Ready to send",
-                        supporting = if (uiState.isSending) null else previewSupporting(uiState.payload),
-                        payload = uiState.payload,
-                        primaryButtonLabel = if (uiState.isSending) null else "Send",
-                        onPrimary = if (uiState.isSending) null else onSubmit,
-                        showProgress = uiState.isSending,
-                        currentEndpoint = currentEndpoint,
-                        showOpenApp = false,
-                        onOpenApp = onOpenApp,
-                        onOpenSettings = onOpenSettings,
-                        onDone = onDone,
-                    )
+                    is ShareUiState.PreviewAndSending -> {
+                        if (uiState.isSending) {
+                            SendingContent(
+                                padding = padding,
+                                headline = "Sending capture...",
+                            )
+                        } else {
+                            ShareContent(
+                                padding = padding,
+                                headline = "Ready to send",
+                                supporting = previewSupporting(uiState.payload),
+                                payload = uiState.payload,
+                                primaryButtonLabel = "Send",
+                                onPrimary = onSubmit,
+                                currentEndpoint = currentEndpoint,
+                                showOpenApp = false,
+                                onOpenApp = onOpenApp,
+                                onOpenSettings = onOpenSettings,
+                                onDone = onDone,
+                            )
+                        }
+                    }
 
                     is ShareUiState.SendFailed -> ShareContent(
                         padding = padding,
@@ -85,7 +92,6 @@ fun ShareApp(
                         payload = uiState.payload,
                         primaryButtonLabel = "Retry",
                         onPrimary = onRetry,
-                        showProgress = false,
                         currentEndpoint = currentEndpoint,
                         showOpenApp = true,
                         onOpenApp = onOpenApp,
@@ -102,7 +108,6 @@ fun ShareApp(
                         payload = uiState.payload,
                         primaryButtonLabel = null,
                         onPrimary = null,
-                        showProgress = false,
                         currentEndpoint = currentEndpoint,
                         showOpenApp = false,
                         onOpenApp = onOpenApp,
@@ -181,7 +186,6 @@ private fun ShareContent(
     payload: SharePayload,
     primaryButtonLabel: String?,
     onPrimary: (() -> Unit)?,
-    showProgress: Boolean,
     currentEndpoint: String,
     showOpenApp: Boolean,
     onOpenApp: () -> Unit,
@@ -238,15 +242,6 @@ private fun ShareContent(
 
         PreviewCard(payload = payload, modifier = Modifier.weight(1f, fill = true))
 
-        if (showProgress) {
-            Box(
-                modifier = Modifier.fillMaxWidth(),
-                contentAlignment = Alignment.Center,
-            ) {
-                CircularProgressIndicator()
-            }
-        }
-
         Row(
             modifier = Modifier.fillMaxWidth(),
             horizontalArrangement = Arrangement.spacedBy(12.dp),
@@ -283,6 +278,28 @@ private fun ShareContent(
                 }
             }
         }
+    }
+}
+
+@Composable
+private fun SendingContent(
+    padding: PaddingValues,
+    headline: String,
+) {
+    Column(
+        modifier = Modifier
+            .fillMaxSize()
+            .padding(padding)
+            .padding(24.dp),
+        verticalArrangement = Arrangement.spacedBy(16.dp, Alignment.CenterVertically),
+        horizontalAlignment = Alignment.CenterHorizontally,
+    ) {
+        CircularProgressIndicator()
+        Text(
+            text = headline,
+            style = MaterialTheme.typography.headlineSmall,
+            fontWeight = FontWeight.SemiBold,
+        )
     }
 }
 
