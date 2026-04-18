@@ -15,6 +15,7 @@ import {
 import { commitAndPushVaultScaffold } from "./git.ts";
 
 const requiredRootFiles = ["index.md", "log.md", "overview.md", "schema.md"] as const;
+const vaultGitIgnoreContents = ".obsidian/\n";
 const minimumNoteSummaryLineCount = 3;
 
 const defaultRootFileContents: Record<(typeof requiredRootFiles)[number], string> = {
@@ -80,7 +81,15 @@ export const ensureVaultScaffold = async (
     }),
   );
 
-  if (createdRootFileCount === 0) {
+  const gitIgnorePath = resolveVaultPath(vaultRepoPath, ".gitignore");
+  const existingGitIgnore = (await fileExists(gitIgnorePath)) ? await readUtf8File(gitIgnorePath) : "";
+  const wroteGitIgnore = existingGitIgnore !== vaultGitIgnoreContents;
+
+  if (wroteGitIgnore) {
+    await writeFileAtomic(gitIgnorePath, vaultGitIgnoreContents);
+  }
+
+  if (createdRootFileCount === 0 && !wroteGitIgnore) {
     return;
   }
 
@@ -93,6 +102,7 @@ export const ensureVaultScaffold = async (
       commitSha: gitResult.commitSha,
       createdRootFileCount,
       diff: gitResult.diff,
+      wroteGitIgnore,
     },
   });
 };
