@@ -22,6 +22,7 @@ import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -30,6 +31,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import kotlinx.coroutines.delay
 
 @Composable
 fun ShareApp(
@@ -37,6 +39,7 @@ fun ShareApp(
     currentEndpoint: String,
     onRetry: () -> Unit,
     onDone: () -> Unit,
+    onOpenApp: () -> Unit,
     onOpenSettings: () -> Unit,
     onDismissSettings: () -> Unit,
     onSaveSettings: (String) -> Unit,
@@ -50,6 +53,7 @@ fun ShareApp(
                         padding = padding,
                         message = uiState.message,
                         currentEndpoint = currentEndpoint,
+                        onOpenApp = onOpenApp,
                         onOpenSettings = onOpenSettings,
                         onDone = onDone,
                     )
@@ -63,6 +67,8 @@ fun ShareApp(
                         onPrimary = null,
                         showProgress = uiState.isSending,
                         currentEndpoint = currentEndpoint,
+                        showOpenApp = false,
+                        onOpenApp = onOpenApp,
                         onOpenSettings = onOpenSettings,
                         onDone = onDone,
                     )
@@ -76,6 +82,8 @@ fun ShareApp(
                         onPrimary = onRetry,
                         showProgress = false,
                         currentEndpoint = currentEndpoint,
+                        showOpenApp = true,
+                        onOpenApp = onOpenApp,
                         onOpenSettings = onOpenSettings,
                         onDone = onDone,
                     )
@@ -91,8 +99,11 @@ fun ShareApp(
                         onPrimary = onDone,
                         showProgress = false,
                         currentEndpoint = currentEndpoint,
+                        showOpenApp = false,
+                        onOpenApp = onOpenApp,
                         onOpenSettings = onOpenSettings,
                         onDone = onDone,
+                        autoDismissOnSuccess = true,
                     )
                 }
 
@@ -113,6 +124,7 @@ private fun InvalidShareContent(
     padding: PaddingValues,
     message: String,
     currentEndpoint: String,
+    onOpenApp: () -> Unit,
     onOpenSettings: () -> Unit,
     onDone: () -> Unit,
 ) {
@@ -137,6 +149,9 @@ private fun InvalidShareContent(
         Row(
             horizontalArrangement = Arrangement.spacedBy(12.dp),
         ) {
+            TextButton(onClick = onOpenApp) {
+                Text("Open app")
+            }
             TextButton(onClick = onOpenSettings) {
                 Text("Settings")
             }
@@ -157,9 +172,19 @@ private fun ShareContent(
     onPrimary: (() -> Unit)?,
     showProgress: Boolean,
     currentEndpoint: String,
+    showOpenApp: Boolean,
+    onOpenApp: () -> Unit,
     onOpenSettings: () -> Unit,
     onDone: () -> Unit,
+    autoDismissOnSuccess: Boolean = false,
 ) {
+    if (autoDismissOnSuccess) {
+        LaunchedEffect(payload.submissionId) {
+            delay(1200)
+            onDone()
+        }
+    }
+
     Column(
         modifier = Modifier
             .fillMaxSize()
@@ -202,11 +227,20 @@ private fun ShareContent(
             modifier = Modifier.fillMaxWidth(),
             horizontalArrangement = Arrangement.spacedBy(12.dp),
         ) {
-            TextButton(
-                onClick = onOpenSettings,
-                modifier = Modifier.weight(1f),
-            ) {
-                Text("Settings")
+            if (showOpenApp) {
+                TextButton(
+                    onClick = onOpenApp,
+                    modifier = Modifier.weight(1f),
+                ) {
+                    Text("Open app")
+                }
+            } else {
+                TextButton(
+                    onClick = onOpenSettings,
+                    modifier = Modifier.weight(1f),
+                ) {
+                    Text("Settings")
+                }
             }
 
             if (primaryButtonLabel != null && onPrimary != null) {
@@ -217,11 +251,71 @@ private fun ShareContent(
                     Text(primaryButtonLabel)
                 }
             } else {
+                if (!autoDismissOnSuccess) {
+                    Button(
+                        onClick = onDone,
+                        modifier = Modifier.weight(1f),
+                    ) {
+                        Text("Done")
+                    }
+                }
+            }
+
+            if (autoDismissOnSuccess) {
                 Button(
                     onClick = onDone,
                     modifier = Modifier.weight(1f),
                 ) {
-                    Text("Done")
+                    Text("Close")
+                }
+            }
+        }
+    }
+}
+
+@Composable
+fun AppHome(
+    currentEndpoint: String,
+    showSettings: Boolean,
+    onOpenSettings: () -> Unit,
+    onDismissSettings: () -> Unit,
+    onSaveSettings: (String) -> Unit,
+) {
+    MaterialTheme {
+        Surface(color = MaterialTheme.colorScheme.background) {
+            Scaffold { padding ->
+                Column(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .padding(padding)
+                        .padding(24.dp),
+                    verticalArrangement = Arrangement.spacedBy(16.dp),
+                ) {
+                    Text(
+                        text = "PKB Share",
+                        style = MaterialTheme.typography.headlineMedium,
+                        fontWeight = FontWeight.SemiBold,
+                    )
+                    Text(
+                        text = "Use Android Share to send text into this app. Configure the backend endpoint here.",
+                        style = MaterialTheme.typography.bodyLarge,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                    Text(
+                        text = "Backend: $currentEndpoint",
+                        style = MaterialTheme.typography.bodyMedium,
+                    )
+                    Button(onClick = onOpenSettings) {
+                        Text("Edit backend")
+                    }
+                }
+
+                if (showSettings) {
+                    EndpointSettingsDialog(
+                        initialValue = currentEndpoint,
+                        onDismiss = onDismissSettings,
+                        onSave = onSaveSettings,
+                    )
                 }
             }
         }

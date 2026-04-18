@@ -38,6 +38,10 @@ class ShareEntryActivity : ComponentActivity() {
                 currentEndpoint = endpointSettingsStore.getEndpointUrl(),
                 onRetry = viewModel::retry,
                 onDone = ::finish,
+                onOpenApp = {
+                    startActivity(Intent(this, MainActivity::class.java))
+                    finish()
+                },
                 onOpenSettings = { showSettings = true },
                 onDismissSettings = { showSettings = false },
                 onSaveSettings = { endpoint ->
