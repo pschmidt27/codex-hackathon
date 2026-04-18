@@ -38,7 +38,7 @@ const serverInfo = {
 
 const toolDefinitions = [
   {
-    description: "Search curated notes and top-level vault documents by keyword.",
+    description: "Search curated notes by keyword.",
     inputSchema: {
       properties: {
         limit: { maximum: 20, minimum: 1, type: "integer" },
@@ -50,7 +50,7 @@ const toolDefinitions = [
     name: "search_curated",
   },
   {
-    description: "Read a curated note or top-level vault document by vault-relative path.",
+    description: "Read a curated note by vault-relative path.",
     inputSchema: {
       properties: {
         path: { minLength: 1, type: "string" },

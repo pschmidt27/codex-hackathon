@@ -12,7 +12,6 @@ import { listFilesRecursive, readUtf8File, resolveVaultPath } from "../lib/fs.ts
 const defaultSearchLimit = 5;
 const defaultRecentLimit = 5;
 const maxResultLimit = 20;
-const curatedRootFiles = new Set(["index.md", "log.md", "overview.md"]);
 
 type SearchCandidate = {
   content: string;
@@ -38,7 +37,7 @@ const normalizeRelativePath = (relativePath: string): string => {
 export const isAllowedCuratedPath = (relativePath: string): boolean => {
   const normalizedPath = normalizeRelativePath(relativePath);
 
-  return curatedRootFiles.has(normalizedPath) || /^notes\/.+\.md$/u.test(normalizedPath);
+  return /^notes\/.+\.md$/u.test(normalizedPath);
 };
 
 export const isAllowedRawPath = (relativePath: string): boolean => {

@@ -30,6 +30,9 @@ Recommended local setup:
 - keep `AUTH_SHARED_SECRET` set so submission APIs stay protected
 - set `ALLOW_INSECURE_READ_ACCESS=true` so local read-only knowledge routes and `/mcp` work without extra MCP auth config
 
+Curated MCP access is intentionally limited to `notes/*.md`.
+It does not return `index.md`, `overview.md`, or other top-level vault files.
+
 ## 2. Start The Backend
 
 Use Node 24:
