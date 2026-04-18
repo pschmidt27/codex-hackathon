@@ -15,6 +15,12 @@ const envSchema = z.object({
   GIT_BRANCH: z.string().min(1).default("main"),
   GIT_REMOTE: z.string().min(1).default("origin"),
   HOST: z.string().min(1).default("0.0.0.0"),
+  MAX_IMAGE_UPLOAD_BYTES: z.coerce
+    .number()
+    .int()
+    .positive()
+    .max(25 * 1024 * 1024)
+    .default(10 * 1024 * 1024),
   MAX_LLM_TOOL_ITERATIONS: z.coerce.number().int().positive().max(50).default(24),
   MAX_SUBMISSION_BYTES: z.coerce
     .number()
@@ -34,6 +40,7 @@ export type Config = {
   gitBranch: string;
   gitRemote: string;
   host: string;
+  maxImageUploadBytes: number;
   maxLlmToolIterations: number;
   maxSubmissionBytes: number;
   openAiApiKey: string;
@@ -62,6 +69,7 @@ export const loadConfig = (environment: NodeJS.ProcessEnv, cwd: string = process
     gitBranch: raw.GIT_BRANCH,
     gitRemote: raw.GIT_REMOTE,
     host: raw.HOST,
+    maxImageUploadBytes: raw.MAX_IMAGE_UPLOAD_BYTES,
     maxLlmToolIterations: raw.MAX_LLM_TOOL_ITERATIONS,
     maxSubmissionBytes: raw.MAX_SUBMISSION_BYTES,
     openAiApiKey: raw.OPENAI_API_KEY,

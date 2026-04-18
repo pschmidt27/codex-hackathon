@@ -9,6 +9,7 @@ import type { Config } from "./config.ts";
 import { createKnowledgeService } from "./domain/knowledge.ts";
 import type { SubmissionQueueService } from "./domain/queue.ts";
 import type { AppLogger } from "./lib/telemetry.ts";
+import type { AcceptedSubmission } from "./types/submissions.ts";
 
 const noop = (): void => undefined;
 
@@ -19,20 +20,23 @@ const noopLogger: AppLogger = {
   warn: noop,
 };
 
+const enqueuedSubmissions: AcceptedSubmission[] = [];
+
 const queueServiceStub: SubmissionQueueService = {
-  enqueue: (submission) =>
-    Promise.resolve({
+  enqueue: (submission) => {
+    enqueuedSubmissions.push(submission);
+    return Promise.resolve({
       status: "accepted",
       statusCode: 202,
       submissionId: submission.submissionId,
-    }),
-  getDebugState: () =>
-    Promise.resolve({
-      acceptingNewSubmissions: true,
-      failedSubmissionIds: [],
-      queue: [],
-      vaultGitStatus: "clean",
-    }),
+    });
+  },
+  getDebugState: () => Promise.resolve({
+    acceptingNewSubmissions: true,
+    failedSubmissionIds: [],
+    queue: [],
+    vaultGitStatus: "clean",
+  }),
   getSubmissionStatus: () => undefined,
   shutdown: () => Promise.resolve(),
 };
@@ -73,6 +77,7 @@ const buildConfig = (vaultRepoPath: string, overrides?: Partial<Config>): Config
   gitBranch: "main",
   gitRemote: "origin",
   host: "127.0.0.1",
+  maxImageUploadBytes: 10 * 1024 * 1024,
   maxLlmToolIterations: 5,
   maxSubmissionBytes: 65_536,
   openAiApiKey: "test-key",
@@ -83,6 +88,7 @@ const buildConfig = (vaultRepoPath: string, overrides?: Partial<Config>): Config
 });
 
 afterEach(async () => {
+  enqueuedSubmissions.splice(0);
   await Promise.all(
     temporaryVaults
       .splice(0)
@@ -226,4 +232,60 @@ void test("returns MCP tool results and structured validation errors", async () 
   );
   assert.equal(errorResponse.status, 200);
   assert.equal(errorBody.error.code, -32_602);
+});
+
+void test("accepts JSON text submissions", async () => {
+  const vaultPath = await createVaultFixture();
+  const app = createApp({
+    config: buildConfig(vaultPath),
+    knowledgeService: createKnowledgeService(vaultPath),
+    logger: noopLogger,
+    queueService: queueServiceStub,
+  });
+
+  const response = await app.fetch(
+    new Request("http://localhost/v1/submissions", {
+      body: JSON.stringify({
+        submissionId: "123e4567-e89b-12d3-a456-426614174000",
+        text: "captured text",
+      }),
+      headers: {
+        "content-type": "application/json",
+        "x-shared-secret": "secret",
+      },
+      method: "POST",
+    }),
+  );
+
+  assert.equal(response.status, 202);
+  assert.equal(enqueuedSubmissions[0]?.kind, "text");
+});
+
+void test("accepts multipart image submissions", async () => {
+  const vaultPath = await createVaultFixture();
+  const app = createApp({
+    config: buildConfig(vaultPath),
+    knowledgeService: createKnowledgeService(vaultPath),
+    logger: noopLogger,
+    queueService: queueServiceStub,
+  });
+
+  const formData = new FormData();
+  formData.set("kind", "image");
+  formData.set("submissionId", "123e4567-e89b-12d3-a456-426614174001");
+  formData.set("text", "caption");
+  formData.set("image", new File([new Uint8Array([1, 2, 3])], "capture.png", { type: "image/png" }));
+
+  const response = await app.fetch(
+    new Request("http://localhost/v1/submissions", {
+      body: formData,
+      headers: {
+        "x-shared-secret": "secret",
+      },
+      method: "POST",
+    }),
+  );
+
+  assert.equal(response.status, 202);
+  assert.equal(enqueuedSubmissions[0]?.kind, "image");
 });

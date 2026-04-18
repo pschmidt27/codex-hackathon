@@ -3,15 +3,11 @@ import { serve } from "@hono/node-server";
 import { createApp } from "./app.ts";
 import { loadConfigFromProcessEnv } from "./config.ts";
 import { commitAndPushVaultChanges, getVaultGitStatus, verifyVaultGitRepo } from "./domain/git.ts";
+import { analyzeImageSubmission } from "./domain/image-analysis.ts";
 import { createKnowledgeService } from "./domain/knowledge.ts";
 import { createOpenAiClient, runMaintainerAgent } from "./domain/llm-maintainer.ts";
 import { createSubmissionQueueService } from "./domain/queue.ts";
-import {
-  assertVaultHealth,
-  buildMaintainerContext,
-  createVaultToolset,
-  ensureVaultScaffold,
-} from "./domain/vault.ts";
+import { assertVaultHealth, createVaultToolset, ensureVaultScaffold } from "./domain/vault.ts";
 import { toError } from "./lib/errors.ts";
 import { createTelemetry } from "./lib/telemetry.ts";
 
@@ -37,9 +33,15 @@ const main = async (): Promise<void> => {
     config,
     getVaultGitStatus: async () => getVaultGitStatus(config.vaultRepoPath),
     logger,
+    runImageAnalysis: async (submission) =>
+      analyzeImageSubmission({
+        client: openAiClient,
+        config,
+        logger,
+        submission,
+      }),
     runMaintainer: async (input) => {
       const toolset = createVaultToolset(config.vaultRepoPath, logger);
-      const vaultContext = await buildMaintainerContext(config.vaultRepoPath, input);
 
       return runMaintainerAgent({
         client: openAiClient,
@@ -47,7 +49,7 @@ const main = async (): Promise<void> => {
         input,
         logger,
         toolset,
-        vaultContext,
+        vaultContext: input.vaultContext,
       });
     },
     verifyPostEditVaultHealth: async (changedFiles) =>

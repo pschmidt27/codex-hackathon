@@ -1,8 +1,10 @@
-import { mkdir, rename, rm, stat, unlink, writeFile } from "node:fs/promises";
+import { mkdir, readFile, rename, rm, stat, unlink, writeFile } from "node:fs/promises";
 import path from "node:path";
 
 import type { AppLogger } from "../lib/telemetry.ts";
+import type { ImageAnalysisResult } from "./image-analysis.ts";
 import type { MaintainerInput } from "./llm-maintainer.ts";
+import type { ImageFileExtension, ImageSubmissionRecord } from "../types/submissions.ts";
 import { AppError, errorCodes } from "../lib/errors.ts";
 import {
   ensureDirectory,
@@ -39,6 +41,9 @@ The vault contains raw captures in \`raw/\` and curated notes in \`notes/\`.
 - If external URLs were fetched for context, incorporate the resulting facts naturally instead of mentioning the retrieval process in curated prose.
 - Avoid heavy-handed provenance labels like \`Source:\` in curated notes when a lighter citation pattern or no visible citation would read better.
 - Prefer provenance only when it genuinely helps readers, using light patterns like a short \`References\` section or inline raw links.
+- Reference raw sources when they support a claim.
+- Every submission must result in curated note work in \`notes/\`.
+- For image ingests, update an existing note only when the match is clear; otherwise create a new note.
 `,
 };
 
@@ -62,6 +67,8 @@ export type VaultHealthCheckResult = {
   diff: string;
 };
 
+const createSubmissionTimestamp = (receivedAtIso: string): string => receivedAtIso.replace(/:/g, "-");
+
 export const ensureVaultScaffold = async (
   vaultRepoPath: string,
   gitRemote: string,
@@ -69,6 +76,7 @@ export const ensureVaultScaffold = async (
   logger: AppLogger,
 ): Promise<void> => {
   await mkdir(path.join(vaultRepoPath, "raw"), { recursive: true });
+  await mkdir(path.join(vaultRepoPath, "raw/assets"), { recursive: true });
   await mkdir(path.join(vaultRepoPath, "notes"), { recursive: true });
 
   let createdRootFileCount = 0;
@@ -114,19 +122,93 @@ export const ensureVaultScaffold = async (
   });
 };
 
-export const createRawSourcePath = (submissionId: string, receivedAtIso: string): string => {
-  const timestamp = receivedAtIso.replace(/:/g, "-");
-
+export const createRawTextSourcePath = (submissionId: string, receivedAtIso: string): string => {
+  const timestamp = createSubmissionTimestamp(receivedAtIso);
   return `raw/${timestamp}--${submissionId}.txt`;
 };
 
-export const writeRawSourceFile = async (
+export const createRawImageAssetPath = (
+  submissionId: string,
+  receivedAtIso: string,
+  extension: ImageFileExtension,
+): string => {
+  const timestamp = createSubmissionTimestamp(receivedAtIso);
+  return `raw/assets/${timestamp}--${submissionId}.${extension}`;
+};
+
+export const createRawImageMetadataPath = (submissionId: string, receivedAtIso: string): string => {
+  const timestamp = createSubmissionTimestamp(receivedAtIso);
+  return `raw/${timestamp}--${submissionId}.md`;
+};
+
+export const writeRawTextSourceFile = async (
   vaultRepoPath: string,
   rawSourceRelativePath: string,
   payloadText: string,
 ): Promise<void> => {
   const absolutePath = resolveVaultPath(vaultRepoPath, rawSourceRelativePath);
   await writeFileAtomic(absolutePath, payloadText);
+};
+
+export const writeRawImageAssetFile = async (
+  vaultRepoPath: string,
+  rawAssetRelativePath: string,
+  imageBytes: Uint8Array,
+): Promise<void> => {
+  const absolutePath = resolveVaultPath(vaultRepoPath, rawAssetRelativePath);
+  await writeFileAtomic(absolutePath, imageBytes);
+};
+
+const renderMetadataLine = (label: string, value?: string | number): string => {
+  return `- ${label}: ${value ?? "unknown"}`;
+};
+
+export const buildImageRawMarkdown = (options: {
+  analysis?: ImageAnalysisResult;
+  rawAssetPath: string;
+  submission: ImageSubmissionRecord;
+}): string => {
+  const { analysis, rawAssetPath, submission } = options;
+
+  return [
+    "# Image Submission",
+    "",
+    "## Metadata",
+    renderMetadataLine("submissionId", submission.submissionId),
+    renderMetadataLine("capturedAt", submission.capturedAt),
+    renderMetadataLine("receivedAt", submission.receivedAt),
+    renderMetadataLine("sourceApp", submission.sourceApp),
+    renderMetadataLine("rawAssetPath", rawAssetPath),
+    renderMetadataLine("mimeType", submission.image.mimeType),
+    renderMetadataLine("fileSizeBytes", submission.image.sizeBytes),
+    renderMetadataLine("imageSha256", submission.image.sha256),
+    renderMetadataLine("originalFilename", submission.image.originalFilename),
+    "",
+    "## Caption",
+    submission.captionText ?? "_No caption provided._",
+    "",
+    "## Image Analysis",
+    ...(analysis
+      ? [
+          renderMetadataLine("classification", analysis.classification),
+          "",
+          "### Description",
+          analysis.description,
+          "",
+          "### OCR Text",
+          analysis.ocrText.length > 0 ? analysis.ocrText : "_No readable text detected._",
+          "",
+          "### Detected Entities",
+          analysis.detectedEntities.length > 0
+            ? analysis.detectedEntities.map((entity) => `- ${entity}`).join("\n")
+            : "_No prominent entities detected._",
+          "",
+          "### Uncertainty",
+          analysis.uncertainty,
+        ]
+      : ["_Pending analysis._"]),
+    "",
+  ].join("\n");
 };
 
 const getSnapshotPaths = async (vaultRepoPath: string): Promise<string[]> => {
@@ -140,8 +222,8 @@ export const readVaultSnapshot = async (vaultRepoPath: string): Promise<VaultSna
   const files = Object.fromEntries(
     await Promise.all(
       relativeFilePaths.map(async (relativeFilePath) => {
-        const content = await readUtf8File(resolveVaultPath(vaultRepoPath, relativeFilePath));
-        return [relativeFilePath, content] as const;
+        const content = await readFile(resolveVaultPath(vaultRepoPath, relativeFilePath));
+        return [relativeFilePath, content.toString("base64")] as const;
       }),
     ),
   );
@@ -153,8 +235,8 @@ export const buildMaintainerContext = async (
   vaultRepoPath: string,
   input: MaintainerInput,
 ): Promise<string> => {
-  const snapshot = await readVaultSnapshot(vaultRepoPath);
-  const preferredPaths = snapshot.relativeFilePaths.filter(
+  const allFiles = await getSnapshotPaths(vaultRepoPath);
+  const preferredPaths = allFiles.filter(
     (filePath) =>
       filePath === input.rawSourcePath ||
       filePath === "index.md" ||
@@ -164,14 +246,16 @@ export const buildMaintainerContext = async (
       filePath.startsWith("notes/"),
   );
 
-  return preferredPaths
-    .map((filePath) => {
-      const content = snapshot.files[filePath] ?? "";
+  const sections = await Promise.all(
+    preferredPaths.map(async (filePath) => {
+      const content = await readUtf8File(resolveVaultPath(vaultRepoPath, filePath));
       return [`--- FILE: ${filePath} ---`, content.trimEnd(), `--- END FILE: ${filePath} ---`].join(
         "\n",
       );
-    })
-    .join("\n\n");
+    }),
+  );
+
+  return sections.join("\n\n");
 };
 
 export const createVaultToolset = (vaultRepoPath: string, logger: AppLogger): VaultToolset => {
@@ -351,7 +435,7 @@ export const restoreVaultFromSnapshot = async (
     snapshot.relativeFilePaths.map(async (relativeFilePath) => {
       const absolutePath = resolveVaultPath(vaultRepoPath, relativeFilePath);
       await ensureDirectory(path.dirname(absolutePath));
-      await writeFile(absolutePath, snapshot.files[relativeFilePath] ?? "", "utf8");
+      await writeFile(absolutePath, Buffer.from(snapshot.files[relativeFilePath] ?? "", "base64"));
     }),
   );
 };

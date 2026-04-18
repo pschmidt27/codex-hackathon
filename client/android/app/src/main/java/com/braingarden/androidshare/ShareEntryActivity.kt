@@ -61,11 +61,11 @@ class ShareEntryActivity : ComponentActivity() {
     }
 
     private fun handleIntent(intent: Intent?) {
-        val payload = ShareIntentParser.parse(
+        val parsedShare = ShareIntentParser.parse(
             intent = intent,
             sourcePackage = resolveSourcePackage(intent),
         )
-        viewModel.receiveShare(payload)
+        viewModel.receiveShare(parsedShare)
     }
 
     private fun resolveSourcePackage(intent: Intent?): String? {

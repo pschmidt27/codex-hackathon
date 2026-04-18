@@ -1,9 +1,11 @@
 import type { Config } from "../config.ts";
+import type { ImageAnalysisResult } from "./image-analysis.ts";
 import type { GitCommitResult } from "./git.ts";
 import type { AppLogger } from "../lib/telemetry.ts";
 import type {
   AcceptedSubmission,
   DebugStateResponse,
+  ImageSubmissionRecord,
   JobRecord,
   SubmissionRecord,
   SubmissionStatusResponse,
@@ -11,12 +13,16 @@ import type {
 import { AppError, errorCodes, toError } from "../lib/errors.ts";
 import { jobStatuses } from "../types/submissions.ts";
 import {
+  buildImageRawMarkdown,
   buildMaintainerContext,
-  createRawSourcePath,
+  createRawImageAssetPath,
+  createRawImageMetadataPath,
+  createRawTextSourcePath,
   createVaultToolset,
   readVaultSnapshot,
   restoreVaultFromSnapshot,
-  writeRawSourceFile,
+  writeRawImageAssetFile,
+  writeRawTextSourceFile,
 } from "./vault.ts";
 
 export type QueueProcessorDependencies = {
@@ -24,16 +30,30 @@ export type QueueProcessorDependencies = {
   config: Config;
   getVaultGitStatus: () => Promise<string>;
   logger: AppLogger;
+  runImageAnalysis: (submission: ImageSubmissionRecord) => Promise<ImageAnalysisResult>;
   runMaintainer: (input: {
     capturedAt?: string;
+    kind: "text" | "image";
+    rawAssetPath?: string;
     rawSourceContent: string;
     rawSourcePath: string;
     sourceApp?: string;
     submissionId: string;
     vaultContext: string;
-  }) => Promise<{ filesChanged: string[]; summary: string }>;
+  }) => Promise<{
+    curatedAction?: "created" | "updated";
+    curatedNotePath?: string;
+    filesChanged: string[];
+    summary: string;
+  }>;
   verifyPostEditVaultHealth: (changedFiles: string[]) => Promise<void>;
   vaultRepoPath: string;
+};
+
+type RawProcessingResult = {
+  rawAssetPath?: string;
+  rawSourceContent: string;
+  rawSourcePath: string;
 };
 
 export type EnqueueResult = {
@@ -149,51 +169,98 @@ export const createSubmissionQueueService = (
   };
 
   const processSubmission = async (submission: SubmissionRecord): Promise<void> => {
-    const rawSourcePath = createRawSourcePath(submission.submissionId, submission.receivedAt);
-    await writeRawSourceFile(dependencies.vaultRepoPath, rawSourcePath, submission.payloadText);
-
-    const snapshotBeforeMaintainer = await readVaultSnapshot(dependencies.vaultRepoPath);
-    const vaultContext = await buildMaintainerContext(dependencies.vaultRepoPath, {
-      ...(submission.capturedAt ? { capturedAt: submission.capturedAt } : {}),
-      rawSourcePath,
-      ...(submission.sourceApp ? { sourceApp: submission.sourceApp } : {}),
-      submissionId: submission.submissionId,
-    });
-    createVaultToolset(dependencies.vaultRepoPath, dependencies.logger);
-
-    const maintainerResult = await (async () => {
-      try {
-        return await dependencies.runMaintainer({
-          ...(submission.capturedAt ? { capturedAt: submission.capturedAt } : {}),
-          rawSourceContent: submission.payloadText,
-          rawSourcePath,
-          ...(submission.sourceApp ? { sourceApp: submission.sourceApp } : {}),
-          submissionId: submission.submissionId,
-          vaultContext,
-        });
-      } catch (error) {
-        await restoreVaultFromSnapshot(dependencies.vaultRepoPath, snapshotBeforeMaintainer);
-        throw error;
-      }
-    })();
-
-    const changedFiles = [...new Set([rawSourcePath, ...maintainerResult.filesChanged])];
+    const snapshotBeforeSubmission = await readVaultSnapshot(dependencies.vaultRepoPath);
 
     try {
+      const rawOutput: RawProcessingResult = await (submission.kind === "image"
+        ? processImageSubmission(submission)
+        : processTextSubmission(submission));
+      const vaultContext = await buildMaintainerContext(dependencies.vaultRepoPath, {
+        ...(submission.capturedAt ? { capturedAt: submission.capturedAt } : {}),
+        kind: submission.kind,
+        ...(rawOutput.rawAssetPath ? { rawAssetPath: rawOutput.rawAssetPath } : {}),
+        rawSourcePath: rawOutput.rawSourcePath,
+        ...(submission.sourceApp ? { sourceApp: submission.sourceApp } : {}),
+        submissionId: submission.submissionId,
+      });
+      createVaultToolset(dependencies.vaultRepoPath, dependencies.logger);
+
+      const maintainerResult = await dependencies.runMaintainer({
+        ...(submission.capturedAt ? { capturedAt: submission.capturedAt } : {}),
+        kind: submission.kind,
+        ...(rawOutput.rawAssetPath ? { rawAssetPath: rawOutput.rawAssetPath } : {}),
+        rawSourceContent: rawOutput.rawSourceContent,
+        rawSourcePath: rawOutput.rawSourcePath,
+        ...(submission.sourceApp ? { sourceApp: submission.sourceApp } : {}),
+        submissionId: submission.submissionId,
+        vaultContext,
+      });
+
+      const changedFiles = [
+        ...new Set([
+          rawOutput.rawSourcePath,
+          ...(rawOutput.rawAssetPath ? [rawOutput.rawAssetPath] : []),
+          ...maintainerResult.filesChanged,
+        ]),
+      ];
+
       await dependencies.verifyPostEditVaultHealth(changedFiles);
+      const gitResult = await dependencies.commitAndPushVaultChanges(submission.submissionId);
+      lastCommitSha = gitResult.commitSha;
+
+      const job = jobs.get(submission.submissionId);
+
+      if (job) {
+        job.gitCommitSha = gitResult.commitSha;
+      }
     } catch (error) {
-      await restoreVaultFromSnapshot(dependencies.vaultRepoPath, snapshotBeforeMaintainer);
+      await restoreVaultFromSnapshot(dependencies.vaultRepoPath, snapshotBeforeSubmission);
       throw error;
     }
+  };
 
-    const gitResult = await dependencies.commitAndPushVaultChanges(submission.submissionId);
-    lastCommitSha = gitResult.commitSha;
+  const processTextSubmission = async (
+    submission: Extract<SubmissionRecord, { kind: "text" }>,
+  ): Promise<RawProcessingResult> => {
+    const rawSourcePath = createRawTextSourcePath(submission.submissionId, submission.receivedAt);
+    await writeRawTextSourceFile(dependencies.vaultRepoPath, rawSourcePath, submission.payloadText);
 
-    const job = jobs.get(submission.submissionId);
+    return {
+      rawSourceContent: submission.payloadText,
+      rawSourcePath,
+    };
+  };
 
-    if (job) {
-      job.gitCommitSha = gitResult.commitSha;
-    }
+  const processImageSubmission = async (
+    submission: ImageSubmissionRecord,
+  ): Promise<RawProcessingResult> => {
+    const rawAssetPath = createRawImageAssetPath(
+      submission.submissionId,
+      submission.receivedAt,
+      submission.image.extension,
+    );
+    const rawSourcePath = createRawImageMetadataPath(submission.submissionId, submission.receivedAt);
+
+    await writeRawImageAssetFile(dependencies.vaultRepoPath, rawAssetPath, submission.image.bytes);
+    await writeRawTextSourceFile(
+      dependencies.vaultRepoPath,
+      rawSourcePath,
+      buildImageRawMarkdown({ rawAssetPath, submission }),
+    );
+
+    const analysis = await dependencies.runImageAnalysis(submission);
+    const rawSourceContent = buildImageRawMarkdown({
+      analysis,
+      rawAssetPath,
+      submission,
+    });
+    await writeRawTextSourceFile(dependencies.vaultRepoPath, rawSourcePath, rawSourceContent);
+
+    return {
+      rawAssetPath,
+      rawSourceContent,
+      rawSourcePath,
+    };
   };
 
   return {
@@ -219,10 +286,16 @@ export const createSubmissionQueueService = (
 
       if (existingSubmission && existingJob) {
         const samePayload =
-          existingSubmission.payloadSha256 === submission.payloadSha256 &&
-          existingSubmission.payloadText === submission.payloadText &&
+          existingSubmission.kind === submission.kind &&
           existingSubmission.capturedAt === submission.capturedAt &&
-          existingSubmission.sourceApp === submission.sourceApp;
+          existingSubmission.sourceApp === submission.sourceApp &&
+          (existingSubmission.kind === "text" && submission.kind === "text"
+            ? existingSubmission.payloadSha256 === submission.payloadSha256 &&
+              existingSubmission.payloadText === submission.payloadText
+            : existingSubmission.kind === "image" && submission.kind === "image"
+              ? existingSubmission.captionText === submission.captionText &&
+                existingSubmission.image.sha256 === submission.image.sha256
+              : false);
 
         if (!samePayload) {
           throw new AppError({
@@ -255,14 +328,7 @@ export const createSubmissionQueueService = (
         });
       }
 
-      submissions.set(submission.submissionId, {
-        ...(submission.capturedAt ? { capturedAt: submission.capturedAt } : {}),
-        payloadSha256: submission.payloadSha256,
-        payloadText: submission.payloadText,
-        receivedAt: submission.receivedAt,
-        ...(submission.sourceApp ? { sourceApp: submission.sourceApp } : {}),
-        submissionId: submission.submissionId,
-      });
+      submissions.set(submission.submissionId, submission);
       jobs.set(submission.submissionId, {
         status: jobStatuses.queued,
         submissionId: submission.submissionId,
@@ -275,6 +341,7 @@ export const createSubmissionQueueService = (
         attributes: {
           queueDepth: queue.length,
           submissionId: submission.submissionId,
+          submissionKind: submission.kind,
         },
       });
 

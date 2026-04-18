@@ -6,22 +6,27 @@ import type { AppEnv } from "../app.ts";
 import type { Config } from "../config.ts";
 import type { SubmissionQueueService } from "../domain/queue.ts";
 import type { AppLogger } from "../lib/telemetry.ts";
-import { buildAcceptedSubmission, submissionRequestSchema } from "../domain/submissions.ts";
+import {
+  buildAcceptedImageSubmission,
+  buildAcceptedTextSubmission,
+  parseImageSubmissionFormFields,
+  textSubmissionRequestSchema,
+} from "../domain/submissions.ts";
 import { AppError } from "../lib/errors.ts";
 
 const jsonContentTypeSchema = z.string().regex(/^application\/json\b/i);
+const multipartContentTypeSchema = z.string().regex(/^multipart\/form-data\b/i);
 
-const assertJsonRequest = (context: Context<AppEnv>): void => {
-  const contentType = context.req.header("content-type");
-  const parsed = jsonContentTypeSchema.safeParse(contentType);
+const getRequestContentType = (context: Context<AppEnv>): string => {
+  return context.req.header("content-type") ?? "";
+};
 
-  if (!parsed.success) {
-    throw new AppError({
-      code: "VALIDATION_ERROR",
-      message: "Content-Type must be application/json.",
-      statusCode: 415,
-    });
-  }
+const isJsonRequest = (context: Context<AppEnv>): boolean => {
+  return jsonContentTypeSchema.safeParse(getRequestContentType(context)).success;
+};
+
+const isMultipartRequest = (context: Context<AppEnv>): boolean => {
+  return multipartContentTypeSchema.safeParse(getRequestContentType(context)).success;
 };
 
 export const createSubmissionsRouter = (dependencies: {
@@ -37,15 +42,27 @@ export const createSubmissionsRouter = (dependencies: {
   });
 
   router.post("/", async (context) => {
-    assertJsonRequest(context);
+    const acceptedSubmission = await (async () => {
+      if (isJsonRequest(context)) {
+        const body: unknown = await context.req.json();
+        const payload = textSubmissionRequestSchema.parse(body);
+        return buildAcceptedTextSubmission(payload, dependencies.config.maxSubmissionBytes);
+      }
 
-    const body: unknown = await context.req.json();
-    const payload = submissionRequestSchema.parse(body);
-    context.set("submissionId", payload.submissionId);
-    const acceptedSubmission = buildAcceptedSubmission(
-      payload,
-      dependencies.config.maxSubmissionBytes,
-    );
+      if (isMultipartRequest(context)) {
+        const formData = await context.req.raw.formData();
+        const payload = parseImageSubmissionFormFields(formData);
+        return await buildAcceptedImageSubmission(payload, dependencies.config.maxImageUploadBytes);
+      }
+
+      throw new AppError({
+        code: "VALIDATION_ERROR",
+        message: "Content-Type must be application/json or multipart/form-data.",
+        statusCode: 415,
+      });
+    })();
+
+    context.set("submissionId", acceptedSubmission.submissionId);
     const result = await dependencies.queueService.enqueue(acceptedSubmission);
 
     dependencies.logger.info({
@@ -54,6 +71,7 @@ export const createSubmissionsRouter = (dependencies: {
         requestId: context.get("requestId"),
         status: result.status,
         submissionId: result.submissionId,
+        submissionKind: acceptedSubmission.kind,
       },
     });
 

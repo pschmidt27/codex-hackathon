@@ -13,6 +13,8 @@ import { AppError, errorCodes, toError } from "../lib/errors.ts";
 
 export type MaintainerInput = {
   capturedAt?: string;
+  kind: "text" | "image";
+  rawAssetPath?: string;
   rawSourceContent?: string;
   rawSourcePath: string;
   sourceApp?: string;
@@ -20,11 +22,15 @@ export type MaintainerInput = {
 };
 
 export type MaintainerResult = {
+  curatedAction?: "created" | "updated";
+  curatedNotePath?: string;
   filesChanged: string[];
   summary: string;
 };
 
 const finalResponseSchema = z.object({
+  curatedAction: z.enum(["created", "updated"]).optional(),
+  curatedNotePath: z.string().min(1).optional(),
   filesChanged: z.array(z.string().min(1)).default([]),
   summary: z.string().min(1),
 });
@@ -214,7 +220,10 @@ Goals:
 - avoid exact quotes, dates, and narrow situational details in durable notes unless they materially change understanding
 - preserve or improve wiki-style links between related notes
 - keep index.md, log.md, overview.md, and schema.md useful
+- every submission must create or update at least one curated note under notes/
+- for image submissions, update an existing note only when the match is clear; otherwise create a new note
 - record the ingest in log.md using the required ## [timestamp] ingest | submissionId | short title format
+- include the curated action, curated note path, raw source path, and raw asset path in the log entry when available
 - mention touched notes in the log entry
 - treat raw/*.txt files as the canonical fact sources for submissions
 - when writing or updating wiki content, prefer linking concrete claims back to supporting raw files, especially the current rawSourcePath and any other raw files you relied on
@@ -232,7 +241,7 @@ Goals:
 - do not write outside the vault repo
 
 When you are finished, respond with JSON only:
-{"summary":"short summary","filesChanged":["path1","path2"]}`;
+{"summary":"short summary","filesChanged":["path1","path2"],"curatedAction":"created|updated","curatedNotePath":"notes/example.md"}`;
 
 const parseAssistantContent = (
   content: string | Array<{ type: string; text?: string }> | null,
@@ -352,7 +361,9 @@ export const runMaintainerAgent = async (options: {
       role: "user",
       content: [
         `submissionId: ${options.input.submissionId}`,
+        `submissionKind: ${options.input.kind}`,
         `rawSourcePath: ${options.input.rawSourcePath}`,
+        `rawAssetPath: ${options.input.rawAssetPath ?? "none"}`,
         `capturedAt: ${options.input.capturedAt ?? "unknown"}`,
         `sourceApp: ${options.input.sourceApp ?? "unknown"}`,
         ...(options.input.rawSourceContent
@@ -457,12 +468,17 @@ export const runMaintainerAgent = async (options: {
       messages.push({
         role: "user",
         content:
-          "Your final response must be valid JSON with keys summary and filesChanged. Return JSON only.",
+          "Your final response must be valid JSON with keys summary, filesChanged, curatedAction, and curatedNotePath. Return JSON only.",
       });
       continue;
     }
 
-    return parsed.data;
+    return {
+      ...(parsed.data.curatedAction ? { curatedAction: parsed.data.curatedAction } : {}),
+      ...(parsed.data.curatedNotePath ? { curatedNotePath: parsed.data.curatedNotePath } : {}),
+      filesChanged: parsed.data.filesChanged,
+      summary: parsed.data.summary,
+    };
   }
 
   throw new AppError({

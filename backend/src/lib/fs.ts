@@ -45,14 +45,21 @@ export const resolveVaultPath = (vaultRootPath: string, relativeFilePath: string
   return resolvedPath;
 };
 
-export const writeFileAtomic = async (targetPath: string, content: string): Promise<void> => {
+export const writeFileAtomic = async (
+  targetPath: string,
+  content: string | Uint8Array,
+): Promise<void> => {
   await ensureDirectory(path.dirname(targetPath));
 
   const tempDirectory = await mkdtemp(path.join(tmpdir(), "pkb-backend-"));
   const tempPath = path.join(tempDirectory, path.basename(targetPath));
 
   try {
-    await writeFile(tempPath, content, "utf8");
+    if (typeof content === "string") {
+      await writeFile(tempPath, content, "utf8");
+    } else {
+      await writeFile(tempPath, content);
+    }
     await rename(tempPath, targetPath);
   } finally {
     await rm(tempDirectory, { recursive: true, force: true });

@@ -1,9 +1,9 @@
 package com.braingarden.androidshare
 
+import android.content.Context
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
-import android.content.Context
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -27,30 +27,47 @@ class ShareViewModel(
     private var latestPayload: SharePayload? = null
     private var latestIncomingShareKey: String? = null
 
-    fun receiveShare(incomingShare: IncomingShare?) {
-        if (incomingShare == null) {
-            latestPayload = null
-            latestIncomingShareKey = null
-            _uiState.value = ShareUiState.InvalidShare("Unsupported share")
-            return
-        }
+    fun receiveShare(parsedShareResult: ParsedShareResult) {
+        when (parsedShareResult) {
+            is ParsedShareResult.Rejected -> {
+                latestPayload = null
+                latestIncomingShareKey = null
+                _uiState.value = ShareUiState.InvalidShare(parsedShareResult.message)
+            }
 
-        if (
-            incomingShare.dedupeKey == latestIncomingShareKey &&
-            _uiState.value !is ShareUiState.SendFailed
-        ) {
-            return
-        }
+            is ParsedShareResult.Accepted -> {
+                val incomingShare = parsedShareResult.share
+                if (
+                    incomingShare.dedupeKey == latestIncomingShareKey &&
+                    _uiState.value !is ShareUiState.SendFailed
+                ) {
+                    return
+                }
 
-        val payload = SharePayload(
-            submissionId = submissionIdFactory(),
-            text = incomingShare.text,
-            capturedAt = timestampFactory(),
-            sourceApp = incomingShare.sourceApp,
-        )
-        latestPayload = payload
-        latestIncomingShareKey = incomingShare.dedupeKey
-        _uiState.value = ShareUiState.PreviewAndSending(payload, isSending = false)
+                val payload = when (incomingShare) {
+                    is IncomingShare.Text -> SharePayload.Text(
+                        submissionId = submissionIdFactory(),
+                        text = incomingShare.text,
+                        capturedAt = timestampFactory(),
+                        sourceApp = incomingShare.sourceApp,
+                    )
+
+                    is IncomingShare.Image -> SharePayload.Image(
+                        submissionId = submissionIdFactory(),
+                        imageUri = incomingShare.imageUri,
+                        mimeType = incomingShare.mimeType,
+                        captionText = incomingShare.captionText,
+                        displayName = incomingShare.displayName,
+                        capturedAt = timestampFactory(),
+                        sourceApp = incomingShare.sourceApp,
+                    )
+                }
+
+                latestPayload = payload
+                latestIncomingShareKey = incomingShare.dedupeKey
+                _uiState.value = ShareUiState.PreviewAndSending(payload, isSending = false)
+            }
+        }
     }
 
     fun submit() {
@@ -70,7 +87,7 @@ class ShareViewModel(
 
         _uiState.value = ShareUiState.PreviewAndSending(payload, isSending = true)
         viewModelScope.launch(mainDispatcher) {
-            when (val result = submissionGateway.submitText(payload)) {
+            when (val result = submissionGateway.submit(payload)) {
                 is SubmissionResult.Success -> {
                     _uiState.value = ShareUiState.SendSucceeded(
                         payload,
@@ -101,6 +118,7 @@ class ShareViewModel(
                     )
                     val repository = SubmissionRepository(
                         endpointProvider = endpointSettingsStore::getEndpointUrl,
+                        contentResolver = context.applicationContext.contentResolver,
                     )
                     @Suppress("UNCHECKED_CAST")
                     return ShareViewModel(repository) as T

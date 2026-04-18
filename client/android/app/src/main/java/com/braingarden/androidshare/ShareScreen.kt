@@ -1,5 +1,6 @@
 package com.braingarden.androidshare
 
+import android.widget.ImageView
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -9,6 +10,7 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -30,8 +32,10 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.viewinterop.AndroidView
 
 @Composable
 fun ShareApp(
@@ -62,7 +66,7 @@ fun ShareApp(
                     is ShareUiState.PreviewAndSending -> ShareContent(
                         padding = padding,
                         headline = if (uiState.isSending) "Sending capture..." else "Ready to send",
-                        supporting = if (uiState.isSending) null else "Captured text",
+                        supporting = if (uiState.isSending) null else previewSupporting(uiState.payload),
                         payload = uiState.payload,
                         primaryButtonLabel = if (uiState.isSending) null else "Send",
                         onPrimary = if (uiState.isSending) null else onSubmit,
@@ -119,6 +123,12 @@ fun ShareApp(
         }
     }
 }
+
+private fun previewSupporting(payload: SharePayload): String =
+    when (payload) {
+        is SharePayload.Image -> "Captured image"
+        is SharePayload.Text -> "Captured text"
+    }
 
 @Composable
 private fun InvalidShareContent(
@@ -264,17 +274,14 @@ private fun ShareContent(
                 ) {
                     Text(primaryButtonLabel)
                 }
-            } else {
-                if (!autoDismissOnSuccess) {
-                    Button(
-                        onClick = onDone,
-                        modifier = Modifier.weight(1f),
-                    ) {
-                        Text("Done")
-                    }
+            } else if (!autoDismissOnSuccess) {
+                Button(
+                    onClick = onDone,
+                    modifier = Modifier.weight(1f),
+                ) {
+                    Text("Done")
                 }
             }
-
         }
     }
 }
@@ -303,7 +310,7 @@ fun AppHome(
                         fontWeight = FontWeight.SemiBold,
                     )
                     Text(
-                        text = "Use Android Share to send text into this app. Configure the backend endpoint here.",
+                        text = "Use Android Share to send text and supported images into this app. Configure the backend endpoint here.",
                         style = MaterialTheme.typography.bodyLarge,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
@@ -380,7 +387,7 @@ private fun PreviewCard(
         verticalArrangement = Arrangement.spacedBy(12.dp),
     ) {
         Text(
-            text = "Captured text",
+            text = previewSupporting(payload),
             style = MaterialTheme.typography.titleMedium,
             fontWeight = FontWeight.SemiBold,
         )
@@ -396,10 +403,30 @@ private fun PreviewCard(
                 .verticalScroll(rememberScrollState()),
             verticalArrangement = Arrangement.spacedBy(12.dp),
         ) {
-            Text(
-                text = payload.text,
-                style = MaterialTheme.typography.bodyLarge,
-            )
+            when (payload) {
+                is SharePayload.Text -> {
+                    Text(
+                        text = payload.text,
+                        style = MaterialTheme.typography.bodyLarge,
+                    )
+                }
+
+                is SharePayload.Image -> {
+                    ImagePreview(payload)
+                    payload.captionText?.let {
+                        Text(
+                            text = it,
+                            style = MaterialTheme.typography.bodyLarge,
+                        )
+                    }
+                    Text(
+                        text = "MIME type: ${payload.mimeType}",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                }
+            }
+
             payload.sourceApp?.let {
                 Text(
                     text = "Source: $it",
@@ -416,4 +443,24 @@ private fun PreviewCard(
             }
         }
     }
+}
+
+@Composable
+private fun ImagePreview(payload: SharePayload.Image) {
+    val context = LocalContext.current
+
+    AndroidView(
+        modifier = Modifier
+            .fillMaxWidth()
+            .heightIn(min = 180.dp),
+        factory = {
+            ImageView(context).apply {
+                adjustViewBounds = true
+                scaleType = ImageView.ScaleType.FIT_CENTER
+            }
+        },
+        update = { imageView ->
+            imageView.setImageURI(payload.imageUri)
+        },
+    )
 }

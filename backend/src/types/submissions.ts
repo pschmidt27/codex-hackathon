@@ -7,14 +7,45 @@ export const jobStatuses = {
 
 export type JobStatus = (typeof jobStatuses)[keyof typeof jobStatuses];
 
-export type SubmissionRecord = {
+export const imageSubmissionMimeTypes = {
+  jpeg: "image/jpeg",
+  png: "image/png",
+  webp: "image/webp",
+} as const;
+
+export type ImageMimeType =
+  (typeof imageSubmissionMimeTypes)[keyof typeof imageSubmissionMimeTypes];
+
+export type ImageFileExtension = "jpg" | "png" | "webp";
+
+export type SubmissionBase = {
   submissionId: string;
-  payloadText: string;
-  payloadSha256: string;
+  kind: "text" | "image";
   capturedAt?: string;
   sourceApp?: string;
   receivedAt: string;
 };
+
+export type TextSubmissionRecord = SubmissionBase & {
+  kind: "text";
+  payloadText: string;
+  payloadSha256: string;
+};
+
+export type ImageSubmissionRecord = SubmissionBase & {
+  kind: "image";
+  captionText?: string;
+  image: {
+    bytes: Uint8Array;
+    extension: ImageFileExtension;
+    mimeType: ImageMimeType;
+    originalFilename?: string;
+    sha256: string;
+    sizeBytes: number;
+  };
+};
+
+export type SubmissionRecord = TextSubmissionRecord | ImageSubmissionRecord;
 
 export type JobRecord = {
   submissionId: string;
@@ -25,9 +56,13 @@ export type JobRecord = {
   gitCommitSha?: string;
 };
 
-export type AcceptedSubmission = SubmissionRecord & {
+export type AcceptedTextSubmission = TextSubmissionRecord & {
   payloadBytes: number;
 };
+
+export type AcceptedImageSubmission = ImageSubmissionRecord;
+
+export type AcceptedSubmission = AcceptedTextSubmission | AcceptedImageSubmission;
 
 export type SubmissionStatusResponse = {
   submissionId: string;
