@@ -1,0 +1,49 @@
+{
+  "name": "personal-knowledge-base-backend",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "check": "pnpm format:check && pnpm typecheck && pnpm lint && pnpm test",
+    "dev": "node --watch src/main.ts",
+    "format": "prettier --write --ignore-unknown .",
+    "format:check": "prettier --check --ignore-unknown .",
+    "lint": "eslint --max-warnings 0 .",
+    "lint:file": "eslint --max-warnings 0",
+    "lint:file:fix": "eslint --max-warnings 0 --fix",
+    "lint:fix": "eslint --max-warnings 0 . --fix",
+    "start": "node src/main.ts",
+    "typecheck": "tsc --build tsconfig.json",
+    "typecheck:watch": "pnpm run typecheck --watch"
+  },
+  "dependencies": {
+    "zod": "^4.3.6"
+  },
+  "devDependencies": {
+    "@types/node": "24",
+    "@typescript-eslint/eslint-plugin": "^8.58.2",
+    "@typescript-eslint/parser": "^8.58.2",
+    "eslint": "^8.57.1",
+    "eslint-plugin-eslint-comments": "^3.2.0",
+    "eslint-plugin-import": "^2.32.0",
+    "eslint-plugin-jsdoc": "^50.8.0",
+    "eslint-plugin-n": "^17.24.0",
+    "eslint-plugin-only-warn": "^1.2.1",
+    "eslint-plugin-regexp": "^2.10.0",
+    "eslint-plugin-unicorn": "^55.0.0",
+    "prettier": "^3.8.3",
+    "prettier-plugin-packagejson": "^2.5.22",
+    "typescript": "^6.0.3"
+  },
+  "packageManager": "pnpm@10.33.0",
+  "engines": {
+    "node": "24.15.0",
+    "pnpm": "10.33.0"
+  },
+  "devEngines": {
+    "runtime": {
+      "name": "node",
+      "version": "24.15.0",
+      "onFail": "download"
+    }
+  }
+}
