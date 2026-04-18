@@ -1,54 +1,27 @@
-# Remotion video
+# Promo Video
 
-<p align="center">
-  <a href="https://github.com/remotion-dev/logo">
-    <picture>
-      <source media="(prefers-color-scheme: dark)" srcset="https://github.com/remotion-dev/logo/raw/main/animated-logo-banner-dark.apng">
-      <img alt="Animated Remotion Logo" src="https://github.com/remotion-dev/logo/raw/main/animated-logo-banner-light.gif">
-    </picture>
-  </a>
-</p>
+## Render the high-quality video
 
-Welcome to your Remotion project!
+Install dependencies if needed:
 
-## Commands
-
-**Install Dependencies**
-
-```console
-npm i
+```bash
+npm install
 ```
 
-**Start Preview**
+Render the high-quality export:
 
-```console
-npm run dev
+```bash
+npx remotion render MyComp out/brain-garden-scene-high-quality.mp4 --crf=16
 ```
 
-**Render video**
+## Notes
 
-```console
-npx remotion render
+- Composition ID: `MyComp`
+- Output file: `out/brain-garden-scene-high-quality.mp4`
+- `--crf=16` uses a higher-quality H.264 setting with less compression than the default.
+
+## Open the rendered video
+
+```bash
+open out/brain-garden-scene-high-quality.mp4
 ```
-
-**Upgrade Remotion**
-
-```console
-npx remotion upgrade
-```
-
-## Docs
-
-Get started with Remotion by reading the [fundamentals page](https://www.remotion.dev/docs/the-fundamentals).
-
-## Help
-
-We provide help on our [Discord server](https://discord.gg/6VzzNDwUwV).
-
-## Issues
-
-Found an issue with Remotion? [File an issue here](https://github.com/remotion-dev/remotion/issues/new).
-
-## License
-
-Note that for some entities a company license is needed. [Read the terms here](https://github.com/remotion-dev/remotion/blob/main/LICENSE.md).
