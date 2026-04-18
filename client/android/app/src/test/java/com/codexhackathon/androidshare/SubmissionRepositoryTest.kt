@@ -35,11 +35,9 @@ class SubmissionRepositoryTest {
         )
 
         val repository = SubmissionRepository(
-            OkHttpApiService(
-                baseUrl = server.url("/").toString(),
-                client = OkHttpClient(),
-                ioDispatcher = Dispatchers.Unconfined,
-            ),
+            endpointProvider = { server.url("/").toString() },
+            client = OkHttpClient(),
+            ioDispatcher = Dispatchers.Unconfined,
         )
 
         val result = repository.submitText(
@@ -70,11 +68,9 @@ class SubmissionRepositoryTest {
         )
 
         val repository = SubmissionRepository(
-            OkHttpApiService(
-                baseUrl = server.url("/").toString(),
-                client = OkHttpClient(),
-                ioDispatcher = Dispatchers.Unconfined,
-            ),
+            endpointProvider = { server.url("/").toString() },
+            client = OkHttpClient(),
+            ioDispatcher = Dispatchers.Unconfined,
         )
 
         val result = repository.submitText(
@@ -93,11 +89,9 @@ class SubmissionRepositoryTest {
     @Test
     fun returnsFailureForNetworkErrors() = runBlocking {
         val repository = SubmissionRepository(
-            OkHttpApiService(
-                baseUrl = "http://127.0.0.1:1",
-                client = OkHttpClient(),
-                ioDispatcher = Dispatchers.Unconfined,
-            ),
+            endpointProvider = { "http://127.0.0.1:1" },
+            client = OkHttpClient(),
+            ioDispatcher = Dispatchers.Unconfined,
         )
 
         val result = repository.submitText(

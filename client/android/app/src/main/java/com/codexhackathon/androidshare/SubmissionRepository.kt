@@ -1,11 +1,17 @@
 package com.codexhackathon.androidshare
 
+import kotlinx.coroutines.CoroutineDispatcher
+import kotlinx.coroutines.Dispatchers
+import okhttp3.OkHttpClient
+
 interface SubmissionGateway {
     suspend fun submitText(payload: SharePayload): SubmissionResult
 }
 
 class SubmissionRepository(
-    private val apiService: ApiService,
+    private val endpointProvider: () -> String,
+    private val client: OkHttpClient = OkHttpClient(),
+    private val ioDispatcher: CoroutineDispatcher = Dispatchers.IO,
 ) : SubmissionGateway {
     override suspend fun submitText(payload: SharePayload): SubmissionResult {
         val request = TextSubmissionRequest(
@@ -14,6 +20,10 @@ class SubmissionRepository(
             capturedAt = payload.capturedAt,
             sourceApp = payload.sourceApp,
         )
-        return apiService.submitText(request)
+        return OkHttpApiService(
+            baseUrl = endpointProvider(),
+            client = client,
+            ioDispatcher = ioDispatcher,
+        ).submitText(request)
     }
 }

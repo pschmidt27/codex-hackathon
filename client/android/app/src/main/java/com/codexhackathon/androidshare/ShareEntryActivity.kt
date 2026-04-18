@@ -8,10 +8,23 @@ import androidx.activity.compose.setContent
 import androidx.activity.viewModels
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 
 class ShareEntryActivity : ComponentActivity() {
+    private val endpointSettingsStore by lazy {
+        EndpointSettingsStore(
+            context = applicationContext,
+            defaultEndpoint = BuildConfig.API_BASE_URL,
+        )
+    }
+
     private val viewModel: ShareViewModel by viewModels {
-        ShareViewModel.factory(BuildConfig.API_BASE_URL)
+        ShareViewModel.factory(
+            context = applicationContext,
+            defaultApiBaseUrl = BuildConfig.API_BASE_URL,
+        )
     }
 
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -19,10 +32,19 @@ class ShareEntryActivity : ComponentActivity() {
         handleIntent(intent)
         setContent {
             val uiState by viewModel.uiState.collectAsState()
+            var showSettings by remember { mutableStateOf(false) }
             ShareApp(
                 uiState = uiState,
+                currentEndpoint = endpointSettingsStore.getEndpointUrl(),
                 onRetry = viewModel::retry,
                 onDone = ::finish,
+                onOpenSettings = { showSettings = true },
+                onDismissSettings = { showSettings = false },
+                onSaveSettings = { endpoint ->
+                    endpointSettingsStore.saveEndpointUrl(endpoint)
+                    showSettings = false
+                },
+                showSettings = showSettings,
             )
         }
     }

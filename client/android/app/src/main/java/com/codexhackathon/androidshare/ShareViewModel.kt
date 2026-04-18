@@ -3,6 +3,7 @@ package com.codexhackathon.androidshare
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
+import android.content.Context
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -85,11 +86,19 @@ class ShareViewModel(
     }
 
     companion object {
-        fun factory(apiBaseUrl: String): ViewModelProvider.Factory =
+        fun factory(
+            context: Context,
+            defaultApiBaseUrl: String,
+        ): ViewModelProvider.Factory =
             object : ViewModelProvider.Factory {
                 override fun <T : ViewModel> create(modelClass: Class<T>): T {
-                    val apiService = OkHttpApiService(baseUrl = apiBaseUrl)
-                    val repository = SubmissionRepository(apiService)
+                    val endpointSettingsStore = EndpointSettingsStore(
+                        context = context.applicationContext,
+                        defaultEndpoint = defaultApiBaseUrl,
+                    )
+                    val repository = SubmissionRepository(
+                        endpointProvider = endpointSettingsStore::getEndpointUrl,
+                    )
                     @Suppress("UNCHECKED_CAST")
                     return ShareViewModel(repository) as T
                 }
