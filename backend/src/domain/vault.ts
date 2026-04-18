@@ -35,6 +35,10 @@ The vault contains raw captures in \`raw/\` and curated notes in \`notes/\`.
 - Use \`log.md\` for chronological ingest history.
 - Treat \`raw/*.txt\` files as the canonical fact sources for submissions.
 - When adding or updating wiki content, prefer linking concrete claims back to supporting raw files, using explicit vault links like \`[[raw/...txt]]\` when practical.
+- Keep curated notes free of pipeline language like "submission URL", "share sheet", "shared text", or "ingest" unless \`log.md\` specifically needs that operational detail.
+- If external URLs were fetched for context, incorporate the resulting facts naturally instead of mentioning the retrieval process in curated prose.
+- Avoid heavy-handed provenance labels like \`Source:\` in curated notes when a lighter citation pattern or no visible citation would read better.
+- Prefer provenance only when it genuinely helps readers, using light patterns like a short \`References\` section or inline raw links.
 `,
 };
 

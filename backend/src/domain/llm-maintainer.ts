@@ -219,6 +219,12 @@ Goals:
 - treat raw/*.txt files as the canonical fact sources for submissions
 - when writing or updating wiki content, prefer linking concrete claims back to supporting raw files, especially the current rawSourcePath and any other raw files you relied on
 - use explicit vault links to raw files when practical (for example [[raw/...txt]]) so readers can verify where facts came from
+- do not mention submission mechanics in curated wiki prose, such as "submission URL", "shared text", "share sheet", "ingest", or similar pipeline wording unless log.md specifically needs it
+- if you used fetch_url or any external page for context, fold the resulting facts into the note naturally without talking about the retrieval process
+- do not write phrases like "the linked article at the submission URL"; instead either cite the supporting raw file, name the source directly if it matters, or omit the provenance sentence from curated prose
+- avoid clunky provenance labels in curated notes such as "Source:" when possible
+- prefer lighter citation patterns like a short "References" section, an inline supporting link, or a final line with raw links only when provenance is actually helpful to readers
+- if provenance does not add reader value for a durable note, omit it from the note body and rely on log.md plus the vault history instead
 - aggressively use fetch_url for URLs found in the submission whenever the linked page could add important context, facts, titles, summaries, or clarifications
 - when a submission includes one or more URLs, prefer fetching them before writing substantive notes about their contents
 - if you rely on information from a URL, fetch it first instead of guessing from the URL alone
