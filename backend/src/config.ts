@@ -7,6 +7,10 @@ import { z } from "zod";
 import { AppError, errorCodes } from "./lib/errors.ts";
 
 const envSchema = z.object({
+  ALLOW_INSECURE_READ_ACCESS: z
+    .enum(["true", "false"])
+    .optional()
+    .transform((value) => value === "true"),
   AUTH_SHARED_SECRET: z.string().min(1).optional(),
   GIT_BRANCH: z.string().min(1).default("main"),
   GIT_REMOTE: z.string().min(1).default("origin"),
@@ -25,6 +29,7 @@ const envSchema = z.object({
 });
 
 export type Config = {
+  allowInsecureReadAccess: boolean;
   authSharedSecret?: string;
   gitBranch: string;
   gitRemote: string;
@@ -52,6 +57,7 @@ export const loadConfig = (environment: NodeJS.ProcessEnv, cwd: string = process
   const raw = parsedEnvironment.data;
 
   return {
+    allowInsecureReadAccess: raw.ALLOW_INSECURE_READ_ACCESS,
     ...(raw.AUTH_SHARED_SECRET ? { authSharedSecret: raw.AUTH_SHARED_SECRET } : {}),
     gitBranch: raw.GIT_BRANCH,
     gitRemote: raw.GIT_REMOTE,

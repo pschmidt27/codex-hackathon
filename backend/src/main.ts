@@ -3,6 +3,7 @@ import { serve } from "@hono/node-server";
 import { createApp } from "./app.ts";
 import { loadConfigFromProcessEnv } from "./config.ts";
 import { commitAndPushVaultChanges, getVaultGitStatus, verifyVaultGitRepo } from "./domain/git.ts";
+import { createKnowledgeService } from "./domain/knowledge.ts";
 import { createOpenAiClient, runMaintainerAgent } from "./domain/llm-maintainer.ts";
 import { createSubmissionQueueService } from "./domain/queue.ts";
 import {
@@ -22,6 +23,7 @@ const main = async (): Promise<void> => {
 
   await verifyVaultGitRepo(config.vaultRepoPath, config.gitBranch, config.gitRemote);
   await ensureVaultScaffold(config.vaultRepoPath, config.gitRemote, config.gitBranch, logger);
+  const knowledgeService = createKnowledgeService(config.vaultRepoPath);
 
   const queueService = createSubmissionQueueService({
     commitAndPushVaultChanges: async (submissionId) =>
@@ -53,7 +55,7 @@ const main = async (): Promise<void> => {
     vaultRepoPath: config.vaultRepoPath,
   });
 
-  const app = createApp({ config, logger, queueService });
+  const app = createApp({ config, knowledgeService, logger, queueService });
   const server = serve({
     fetch: app.fetch,
     hostname: config.host,

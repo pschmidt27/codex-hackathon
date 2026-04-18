@@ -13,6 +13,7 @@ import { jobStatuses } from "../types/submissions.ts";
 import {
   buildMaintainerContext,
   createRawSourcePath,
+  createVaultToolset,
   readVaultSnapshot,
   restoreVaultFromSnapshot,
   writeRawSourceFile,
@@ -158,6 +159,8 @@ export const createSubmissionQueueService = (
       ...(submission.sourceApp ? { sourceApp: submission.sourceApp } : {}),
       submissionId: submission.submissionId,
     });
+    createVaultToolset(dependencies.vaultRepoPath, dependencies.logger);
+
     const maintainerResult = await (async () => {
       try {
         return await dependencies.runMaintainer({

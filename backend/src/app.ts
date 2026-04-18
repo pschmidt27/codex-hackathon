@@ -1,9 +1,12 @@
 import { Hono } from "hono";
 
 import type { Config } from "./config.ts";
+import type { KnowledgeService } from "./domain/knowledge.ts";
 import type { SubmissionQueueService } from "./domain/queue.ts";
 import type { AppLogger } from "./lib/telemetry.ts";
 import { AppError, toError } from "./lib/errors.ts";
+import { createKnowledgeRouter } from "./routes/knowledge.ts";
+import { createMcpRouter } from "./routes/mcp.ts";
 import { createSubmissionsRouter } from "./routes/submissions.ts";
 
 const sharedSecretHeaderName = "x-shared-secret";
@@ -19,10 +22,17 @@ export type AppEnv = {
 
 export const createApp = (dependencies: {
   config: Config;
+  knowledgeService: KnowledgeService;
   logger: AppLogger;
   queueService: SubmissionQueueService;
 }): Hono<AppEnv> => {
   const app = new Hono<AppEnv>();
+  const isReadOnlyKnowledgePath = (method: string, path: string): boolean => {
+    return (
+      (method === "GET" && path.startsWith("/v1/knowledge/")) ||
+      (method === "POST" && path === "/mcp")
+    );
+  };
 
   app.use("*", async (context, next) => {
     const requestId = crypto.randomUUID();
@@ -55,7 +65,11 @@ export const createApp = (dependencies: {
       },
     });
 
-    if (dependencies.config.authSharedSecret) {
+    if (
+      dependencies.config.authSharedSecret &&
+      !(dependencies.config.allowInsecureReadAccess &&
+        isReadOnlyKnowledgePath(context.req.method, context.req.path))
+    ) {
       const providedSecret = context.req.header(sharedSecretHeaderName);
 
       if (providedSecret !== dependencies.config.authSharedSecret) {
@@ -70,6 +84,8 @@ export const createApp = (dependencies: {
   });
 
   app.get("/health", (context) => context.json({ status: "ok" }, 200));
+  app.route("/mcp", createMcpRouter({ knowledgeService: dependencies.knowledgeService }));
+  app.route("/v1/knowledge", createKnowledgeRouter({ knowledgeService: dependencies.knowledgeService }));
   app.route("/v1/submissions", createSubmissionsRouter(dependencies));
 
   app.onError((error, context) => {
