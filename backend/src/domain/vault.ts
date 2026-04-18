@@ -35,6 +35,8 @@ The vault contains raw captures in \`raw/\` and curated notes in \`notes/\`.
 - Preserve useful wiki-style links between related notes.
 - Keep \`index.md\`, \`log.md\`, and \`overview.md\` useful after every ingest.
 - Prefer updating existing notes when new input fits an existing topic.
+- If multiple notes overlap, prefer consolidating them into one stronger note instead of creating another overlapping note.
+- Create a new note only when the information does not fit cleanly into any existing durable note.
 - All curated notes must live under \`notes/\`. Do not create new root-level markdown files other than \`index.md\`, \`log.md\`, \`overview.md\`, and \`schema.md\`.
 - Use \`log.md\` for chronological ingest history.
 - Treat \`raw/*.txt\` files as the canonical fact sources for submissions.
@@ -69,7 +71,8 @@ export type VaultHealthCheckResult = {
   diff: string;
 };
 
-const createSubmissionTimestamp = (receivedAtIso: string): string => receivedAtIso.replace(/:/g, "-");
+const createSubmissionTimestamp = (receivedAtIso: string): string =>
+  receivedAtIso.replace(/:/g, "-");
 
 export const ensureVaultScaffold = async (
   vaultRepoPath: string,
@@ -309,7 +312,10 @@ export const getChangedVaultFilesSinceSnapshot = async (
   snapshot: VaultSnapshot,
 ): Promise<string[]> => {
   const currentSnapshot = await readVaultSnapshot(vaultRepoPath);
-  const candidatePaths = new Set([...snapshot.relativeFilePaths, ...currentSnapshot.relativeFilePaths]);
+  const candidatePaths = new Set([
+    ...snapshot.relativeFilePaths,
+    ...currentSnapshot.relativeFilePaths,
+  ]);
 
   return [...candidatePaths]
     .filter((filePath) => snapshot.files[filePath] !== currentSnapshot.files[filePath])

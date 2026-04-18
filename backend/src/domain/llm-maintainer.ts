@@ -141,7 +141,8 @@ const toolDefinitions: ChatCompletionTool[] = [
     type: "function",
     function: {
       name: "create_file",
-      description: "Create a new UTF-8 file. Prefer this when adding a new note or support file.",
+      description:
+        "Create a new UTF-8 file. Use this only after you have ruled out updating or consolidating existing notes.",
       parameters: {
         type: "object",
         properties: {
@@ -211,7 +212,12 @@ You may directly edit any file in the vault repo.
 
 Goals:
 - inspect the current vault state before making major changes
-- decide whether to update existing files or create new ones
+- decide whether to update existing files, consolidate existing notes, or create a new note
+- strongly prefer enriching an existing note over creating a new one when the submission overlaps with an existing topic, person, project, preference, or ongoing thread
+- proactively consolidate fragmented notes when the new submission makes it clear that two or more notes should really be one note; merge the content into the best long-term destination note and use rename_file/delete_file when helpful
+- prefer broader, reusable notes over many narrow notes that each restate one submission
+- create a new note only when the information does not fit cleanly into any existing note and would remain a distinct durable topic over time
+- before creating a new note, review relevant existing notes and ask whether the new material can be absorbed by one of them with a small restructuring
 - keep notes concise, accurate, and reader-friendly
 - capture durable, reusable knowledge rather than one-off details from a single submission
 - prefer generalized summaries over exact restatements; synthesize patterns, preferences, and stable facts
@@ -241,6 +247,15 @@ Goals:
 - if you rely on information from a URL, fetch it first instead of guessing from the URL alone
 - if new input conflicts with existing notes, note the contradiction clearly
 - do not write outside the vault repo
+
+Decision policy for note creation vs reuse:
+- default to updating an existing note
+- if multiple existing notes partially overlap, prefer consolidating them into one stronger note instead of creating a third overlapping note
+- use existing note titles as hints, but decide primarily from the note bodies and topic overlap
+- if the new submission only adds another example, refinement, source, or sub-point to an existing note, update that note rather than creating a sibling note
+- if a new note would have substantial overlap with an existing note's summary or sections, do not create it; fold the content into the existing note instead
+- when consolidating notes, preserve the strongest title and move unique useful details into the destination note before deleting or renaming the redundant note
+- only create a new note when you can clearly explain why none of the existing notes are the right destination
 
 When you are finished, respond with JSON only:
 {"summary":"short summary","filesChanged":["path1","path2"],"curatedAction":"created|updated","curatedNotePath":"notes/example.md"}`;
