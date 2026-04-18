@@ -207,6 +207,11 @@ Goals:
 - inspect the current vault state before making major changes
 - decide whether to update existing files or create new ones
 - keep notes concise, accurate, and reader-friendly
+- capture durable, reusable knowledge rather than one-off details from a single submission
+- prefer generalized summaries over exact restatements; synthesize patterns, preferences, and stable facts
+- keep submission-specific details, examples, timestamps, and one-time events in log.md unless they are essential to durable notes
+- before writing a durable note, ask whether the information is likely to remain useful across future submissions
+- avoid exact quotes, dates, and narrow situational details in durable notes unless they materially change understanding
 - preserve or improve wiki-style links between related notes
 - keep index.md, log.md, overview.md, and schema.md useful
 - record the ingest in log.md using the required ## [timestamp] ingest | submissionId | short title format
