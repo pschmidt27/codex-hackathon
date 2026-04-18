@@ -1,99 +1,84 @@
-# Submission helper script
+# BrainGarden
 
-This repository includes `backend/scripts/perform-submission.ts`, a small Node.js script that submits a payload to the backend submission endpoint with `fetch`.
+BrainGarden is a capture-to-knowledge system. It lets you share content from Android, stores the raw source on a backend, curates it into an Obsidian vault, and exposes that knowledge through MCP so any compatible agent can use it.
 
-## What it does
+## What It Does
 
-The script sends a `POST` request to `/v1/submissions` with a JSON body shaped like this:
+- Capture text from the native Android Share sheet
+- Send it to a backend for processing
+- Preserve each submission as an immutable raw source
+- Update curated notes, logs, and overview files in an Obsidian vault
+- Expose the vault through a read-only MCP server for agents
 
-```json
-{
-  "submissionId": "uuid",
-  "text": "My submission text",
-  "sourceApp": "optional-source-app",
-  "capturedAt": "2026-04-18T12:00:00.000Z"
-}
-```
+## Core Flow
 
-If provided, it also sends the shared secret header:
+1. Share text from any Android app to `BrainGarden`.
+2. The Android client submits it to `POST /v1/submissions`.
+3. The backend stores the raw capture in `raw/`.
+4. The maintainer updates curated content in `notes/`, `log.md`, `overview.md`, and `index.md`.
+5. The vault can then be searched and read by MCP-compatible agents.
 
-```text
-x-shared-secret: <value>
-```
+## Repo Structure
 
-## Usage
+- `client/android` — Android capture app built around the native Share flow
+- `backend` — submission API, vault maintenance pipeline, and MCP endpoint
+- `docs` — plans, MCP setup notes, and submission material
+- `assets` — project branding assets
 
-Submit inline text:
+## Why It Matters
+
+Most knowledge tools make capture easy but leave organization to the user. BrainGarden is built to remove that second step. It combines fast mobile capture with automatic curation, so information is not just collected, but turned into something reusable.
+
+## MCP Access
+
+BrainGarden includes a read-only MCP endpoint at `/mcp`. This makes the curated vault available beyond one app or one assistant.
+
+Available tools:
+
+- `search_curated`
+- `read_curated`
+- `list_recent_ingests`
+- `search_raw`
+- `read_raw`
+
+This lets any compatible agent search notes, inspect recent ingests, and ground responses in the user’s own knowledge base.
+
+For full MCP setup details, see [docs/HOW_TO_MCP.md](/Users/philipschmidt/Lemon/git/codex-hackathon/docs/HOW_TO_MCP.md).
+
+## Quick Start
+
+### Backend
 
 ```sh
 cd backend
-pnpm exec node backend/scripts/perform-submission.ts --text "My submission"
+cp .env.example .env
+pnpm install
+pnpm start
 ```
 
-Submit text from a file:
+Required configuration lives in `backend/.env`. At minimum, set:
 
-```sh
-cd backend
-pnpm exec node backend/scripts/perform-submission.ts --file ./submission.txt
-```
-
-Submit to a custom endpoint:
-
-```sh
-cd backend
-pnpm exec node backend/scripts/perform-submission.ts \
-  --url http://127.0.0.1:3000/v1/submissions \
-  --text "My submission"
-```
-
-Submit with an explicit shared secret:
-
-```sh
-cd backend
-pnpm exec node backend/scripts/perform-submission.ts \
-  --text "My submission" \
-  --shared-secret "$AUTH_SHARED_SECRET"
-```
-
-## Options
-
-- `--url <url>`: submission endpoint URL. Default: `http://127.0.0.1:3000/v1/submissions`
-- `--text <text>`: submission text payload
-- `--file <path>`: read submission text from a file
-- `--submission-id <uuid>`: submission ID to send. Defaults to a generated UUID
-- `--source-app <name>`: optional `sourceApp` value
-- `--captured-at <iso>`: optional ISO-8601 timestamp
-- `--shared-secret <value>`: optional `x-shared-secret` header value
-- `--help`: print usage information
-
-## Environment variables
-
-The script also supports configuration through environment variables:
-
-- `SUBMISSION_URL`
-- `SUBMISSION_TEXT`
-- `SUBMISSION_FILE`
-- `SUBMISSION_ID`
-- `SUBMISSION_SOURCE_APP`
-- `SUBMISSION_CAPTURED_AT`
+- `VAULT_REPO_PATH`
+- `OPENAI_API_KEY`
 - `AUTH_SHARED_SECRET`
 
-CLI flags take precedence over environment variables.
+For local MCP testing, `ALLOW_INSECURE_READ_ACCESS=true` is useful.
 
-## Output
+### Android Client
 
-The script prints a formatted JSON object with the HTTP result:
+The Android app lives in `client/android` and is designed to receive shared content from the Android Share sheet and send it to the backend.
 
-```json
-{
-  "ok": true,
-  "status": 202,
-  "statusText": "Accepted",
-  "body": {
-    "status": "accepted",
-    "submissionId": "..."
-  }
-}
+## Submission Helper
+
+For backend testing without the Android client, use:
+
+```sh
+cd backend
+pnpm exec node scripts/perform-submission.ts --text "My submission"
 ```
 
-If the server returns a non-2xx status, the script exits with a non-zero exit code.
+The helper sends a request to `/v1/submissions` and prints the HTTP result.
+
+## Project Summary
+
+BrainGarden turns quick captures into durable knowledge. It is both a fast mobile capture workflow and a shared knowledge layer for AI agents: capture once, preserve the source, curate automatically, and make the result available through MCP.
