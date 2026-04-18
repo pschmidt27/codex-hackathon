@@ -93,11 +93,11 @@ export const getVaultGitStatus = async (vaultRepoPath: string): Promise<string> 
   return trimTrailingNewline(await runGit(vaultRepoPath, ["status", "--short"])) || "clean";
 };
 
-export const commitAndPushVaultChanges = async (
+const commitAndPushChanges = async (
   vaultRepoPath: string,
   gitRemote: string,
   gitBranch: string,
-  submissionId: string,
+  commitMessage: string,
   logger: AppLogger,
 ): Promise<GitCommitResult> => {
   const statusBeforeStaging = await runGit(vaultRepoPath, ["status", "--porcelain"]);
@@ -120,10 +120,10 @@ export const commitAndPushVaultChanges = async (
 
   logger.info({
     body: "Prepared git diff for commit.",
-    attributes: { changedFileCount: changedFiles.length, diff },
+    attributes: { changedFileCount: changedFiles.length, commitMessage, diff },
   });
 
-  await runGit(vaultRepoPath, ["commit", "-m", `ingest: ${submissionId}`]);
+  await runGit(vaultRepoPath, ["commit", "-m", commitMessage]);
   const commitSha = trimTrailingNewline(await runGit(vaultRepoPath, ["rev-parse", "HEAD"]));
 
   try {
@@ -143,6 +143,31 @@ export const commitAndPushVaultChanges = async (
     commitSha,
     diff,
   };
+};
+
+export const commitAndPushVaultChanges = async (
+  vaultRepoPath: string,
+  gitRemote: string,
+  gitBranch: string,
+  submissionId: string,
+  logger: AppLogger,
+): Promise<GitCommitResult> => {
+  return commitAndPushChanges(
+    vaultRepoPath,
+    gitRemote,
+    gitBranch,
+    `ingest: ${submissionId}`,
+    logger,
+  );
+};
+
+export const commitAndPushVaultScaffold = async (
+  vaultRepoPath: string,
+  gitRemote: string,
+  gitBranch: string,
+  logger: AppLogger,
+): Promise<GitCommitResult> => {
+  return commitAndPushChanges(vaultRepoPath, gitRemote, gitBranch, "chore: scaffold vault", logger);
 };
 
 export const resetVaultToHead = async (vaultRepoPath: string): Promise<void> => {

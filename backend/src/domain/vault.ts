@@ -12,6 +12,7 @@ import {
   resolveVaultPath,
   writeFileAtomic,
 } from "../lib/fs.ts";
+import { commitAndPushVaultScaffold } from "./git.ts";
 
 const requiredRootFiles = ["index.md", "log.md", "overview.md", "schema.md"] as const;
 const minimumNoteSummaryLineCount = 3;
@@ -55,9 +56,16 @@ export type VaultHealthCheckResult = {
   diff: string;
 };
 
-export const ensureVaultScaffold = async (vaultRepoPath: string): Promise<void> => {
+export const ensureVaultScaffold = async (
+  vaultRepoPath: string,
+  gitRemote: string,
+  gitBranch: string,
+  logger: AppLogger,
+): Promise<void> => {
   await mkdir(path.join(vaultRepoPath, "raw"), { recursive: true });
   await mkdir(path.join(vaultRepoPath, "notes"), { recursive: true });
+
+  let createdRootFileCount = 0;
 
   await Promise.all(
     requiredRootFiles.map(async (rootFileName) => {
@@ -68,8 +76,25 @@ export const ensureVaultScaffold = async (vaultRepoPath: string): Promise<void> 
       }
 
       await writeFileAtomic(absolutePath, defaultRootFileContents[rootFileName]);
+      createdRootFileCount += 1;
     }),
   );
+
+  if (createdRootFileCount === 0) {
+    return;
+  }
+
+  const gitResult = await commitAndPushVaultScaffold(vaultRepoPath, gitRemote, gitBranch, logger);
+
+  logger.info({
+    body: "Committed and pushed vault scaffold changes.",
+    attributes: {
+      changedFileCount: gitResult.changedFiles.length,
+      commitSha: gitResult.commitSha,
+      createdRootFileCount,
+      diff: gitResult.diff,
+    },
+  });
 };
 
 export const createRawSourcePath = (submissionId: string, receivedAtIso: string): string => {

@@ -21,7 +21,7 @@ const main = async (): Promise<void> => {
   const openAiClient = createOpenAiClient(config);
 
   await verifyVaultGitRepo(config.vaultRepoPath, config.gitBranch, config.gitRemote);
-  await ensureVaultScaffold(config.vaultRepoPath);
+  await ensureVaultScaffold(config.vaultRepoPath, config.gitRemote, config.gitBranch, logger);
 
   const queueService = createSubmissionQueueService({
     commitAndPushVaultChanges: async (submissionId) =>
